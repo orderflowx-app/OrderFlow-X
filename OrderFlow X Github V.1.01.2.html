@@ -1,0 +1,2451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>OrderFlow X — v1.01.2</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&family=Sarabun:wght@400;600;700&display=swap');
+:root {
+  --bg: #04080c; --panel: #080f18; --border: #0d2030;
+  --buy: #00e676; --sell: #ff3d5a; --accent: #00b8d9;
+  --text: #b8dce8; --dim: #3a6070; --gold: #ffd600;
+  --match: #ff9800; --purple: #b388ff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Rajdhani', sans-serif; min-height: 100vh; }
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background-image: linear-gradient(rgba(0,184,217,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,184,217,0.025) 1px,transparent 1px);
+  background-size: 32px 32px; pointer-events: none; z-index: 0;
+}
+.wrap { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 10px 10px 30px; }
+
+header { text-align: center; padding: 14px 0 12px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: 5px; color: var(--accent); text-shadow: 0 0 20px rgba(0,184,217,0.5); }
+header p { color: var(--dim); font-size: 0.7rem; letter-spacing: 2px; margin-top: 4px; }
+
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 12px; position: relative; margin-bottom: 10px; overflow: hidden; }
+.panel::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.panel.p-accent::before { background: var(--accent); }
+.panel.p-gold::before { background: var(--gold); }
+.panel.p-buy::before { background: var(--buy); }
+.panel.p-sell::before { background: var(--sell); }
+.panel.p-dim::before { background: var(--dim); }
+.panel.p-match::before { background: var(--match); }
+.ptitle { font-size: 0.65rem; letter-spacing: 3px; color: var(--dim); margin-bottom: 10px; text-transform: uppercase; }
+
+.stats-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.sbox { flex: 1; min-width: 65px; background: rgba(0,0,0,0.5); border: 1px solid var(--border); border-radius: 3px; padding: 7px 6px; text-align: center; }
+.sbox .sl { font-size: 0.55rem; letter-spacing: 2px; color: var(--dim); display: block; }
+.sbox .sv { font-family: 'Share Tech Mono', monospace; font-size: 0.95rem; display: block; margin-top: 2px; }
+
+.top-grid { display: grid; grid-template-columns: 1fr 340px; gap: 10px; margin-bottom: 10px; }
+@media(max-width:680px){ .top-grid{ grid-template-columns:1fr; } }
+
+/* ============================================================
+   MOBILE RESPONSIVE — max 680px
+   ============================================================ */
+@media(max-width:680px){
+  header h1 { font-size: 1.2rem; letter-spacing: 3px; }
+  header p  { font-size: 0.6rem; letter-spacing: 1px; }
+  .stats-row { gap: 4px; }
+  .sbox { min-width: 0; flex: 1; padding: 5px 4px; }
+  .sbox .sv { font-size: 0.8rem; }
+  .sbox .sl { font-size: 0.5rem; letter-spacing: 1px; }
+  .sbox-hide { display: none; }
+  .ibar-wrap { padding: 0 0 6px; }
+  .mob-tabs { display: flex !important; gap: 0; margin-bottom: 0; border-bottom: 1px solid var(--border); }
+  .mob-panel { display: none; }
+  .mob-panel.active { display: block; }
+
+/* Desktop — show all panels, DOM panel always visible in its own row */
+@media(min-width:681px){
+  .mob-panel { display: block !important; }
+  #mpanel-dom { margin-top: 8px; }
+}
+  .top-grid { display: block; gap: 0; margin-bottom: 0; }
+  .top-grid > .panel { margin-bottom: 0; border-radius: 0 0 4px 4px; border-top: none; }
+  .mob-controls {
+    position: sticky; bottom: 0; z-index: 100;
+    background: #04080c; border-top: 1px solid var(--border);
+    padding: 8px 10px;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .mob-controls .btn-simulate  { font-size: 0.85rem; width:100%; min-width:unset; height:38px; padding:0; }
+  .mob-controls .btn-newcandle { font-size: 0.85rem; width:100%; min-width:unset; height:38px; padding:0; }
+  .mob-controls .btn-reset     { font-size: 0.85rem; width:100%; min-width:unset; height:38px; padding:0; }
+  .mob-controls .btn-ref       { font-size: 0.85rem; width:100%; min-width:unset; height:38px; padding:0; }
+  @media (orientation: landscape) {
+    .mob-controls { grid-template-columns: 1fr 1fr 1fr 1fr !important; }
+    .mob-controls .btn-simulate,
+    .mob-controls .btn-newcandle,
+    .mob-controls .btn-reset,
+    .mob-controls .btn-ref { height:38px; }
+  }
+  .desktop-simulate { display: none !important; }
+  .forms-row { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .frow2 { grid-template-columns: 1fr 1fr; }
+  .fgroup input, .fgroup select { font-size: 0.8rem; padding: 6px 8px; }
+  .btn { padding: 10px; font-size: 0.95rem; }
+  .fgroup label span { display: none; }
+  .acc-body.closed { max-height: 0 !important; overflow: hidden; }
+  #candleStatus { font-size: 0.62rem; padding: 4px; }
+  .disclaimer-bar { font-size: 0.5rem; padding: 8px 10px; }
+}
+.mob-tabs { display: none; }
+.mob-controls { display: none; }
+
+#chartCanvas { width:100%; display:block; background:#030810; border-radius:3px; }
+
+/* ORDER BOOK */
+.ob-header-row { display: grid; grid-template-columns: 55px 1fr 1fr 1fr; gap: 2px; font-size: 0.58rem; letter-spacing: 2px; color: var(--dim); padding: 0 4px 6px; border-bottom: 1px solid var(--border); }
+.ob-header-row span:not(:first-child) { text-align: right; }
+.ob-row { display: grid; grid-template-columns: 55px 1fr 1fr 1fr; gap: 2px; padding: 2px 4px; font-family: 'Share Tech Mono', monospace; font-size: 0.75rem; position: relative; }
+.ob-row span:not(:first-child) { text-align: right; position: relative; z-index: 1; }
+.ob-row span:first-child { font-size: 0.6rem; letter-spacing: 1px; }
+.ob-depth { position: absolute; top:0; bottom:0; right:0; opacity: 0.13; border-radius: 2px; }
+.sell-row span { color: var(--sell); }
+.buy-row span { color: var(--buy); }
+.sell-row span:first-child { color: rgba(255,61,90,0.5); }
+.buy-row span:first-child { color: rgba(0,230,118,0.5); }
+.sell-row .ob-depth { background: var(--sell); }
+.buy-row .ob-depth { background: var(--buy); }
+.ob-spread { background: rgba(255,214,0,0.06); border-top: 1px solid rgba(255,214,0,0.2); border-bottom: 1px solid rgba(255,214,0,0.2); padding: 5px 4px; }
+.ob-price-center { text-align:center; color: var(--gold); font-size: 1.1rem; font-weight: 700; letter-spacing:2px; font-family:'Share Tech Mono',monospace; }
+.ob-sub { display:flex; justify-content:space-between; font-size:0.6rem; color:var(--dim); margin-top:3px; font-family:'Share Tech Mono',monospace; }
+.ob-empty { font-size:0.65rem; color:var(--dim); padding:2px 4px; font-family:'Share Tech Mono',monospace; opacity:0.3; display:grid; grid-template-columns:55px 1fr 1fr 1fr; gap:2px; }
+.ob-empty span:not(:first-child) { text-align:right; }
+
+.forms-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.fgroup { margin-bottom: 8px; }
+.fgroup label { display:block; font-size:0.6rem; letter-spacing:2px; color:var(--dim); margin-bottom:4px; }
+.fgroup input, .fgroup select { width:100%; background:rgba(0,0,0,0.6); border:1px solid var(--border); border-radius:3px; color:var(--text); padding:7px 9px; font-family:'Share Tech Mono',monospace; font-size:0.85rem; outline:none; }
+.fgroup input:focus, .fgroup select:focus { border-color:var(--accent); }
+.fgroup select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2300b8d9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 10px 6px;
+  cursor: pointer;
+}
+.fgroup select option { background:#080f18; }
+.frow2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.btn { width:100%; padding:9px; border:none; border-radius:3px; font-family:'Rajdhani',sans-serif; font-size:1rem; font-weight:700; letter-spacing:2px; cursor:pointer; transition:all 0.15s; margin-top:2px; }
+.btn-buy { background:var(--buy); color:#000; }
+.btn-buy:hover { box-shadow:0 0 15px rgba(0,230,118,0.4); }
+.btn-sell { background:var(--sell); color:#fff; }
+.btn-sell:hover { box-shadow:0 0 15px rgba(255,61,90,0.4); }
+
+/* ===== REFERENCE MODAL ===== */
+.ref-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:1000; backdrop-filter:blur(4px); }
+.ref-overlay.open { display:flex; flex-direction:column; }
+.ref-modal { display:flex; flex-direction:column; width:100%; max-width:760px; height:100vh; margin:0 auto; background:#04080C; border-left:1px solid var(--border); border-right:1px solid var(--border); }
+.ref-header { display:flex; justify-content:space-between; align-items:center; padding:12px 18px; background:#0A1520; border-bottom:1px solid var(--border); flex-shrink:0; }
+.ref-title { font-family:'Share Tech Mono',monospace; font-size:0.9rem; letter-spacing:4px; color:var(--accent); }
+.ref-tabs { display:flex; gap:0; }
+.ref-tab { padding:6px 20px; font-family:'Share Tech Mono',monospace; font-size:0.65rem; letter-spacing:2px; color:var(--dim); background:none; border:none; border-bottom:2px solid transparent; cursor:pointer; transition:all 0.2s; }
+.ref-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.ref-close { background:none; border:none; color:var(--dim); font-size:1.2rem; cursor:pointer; padding:4px 8px; transition:color 0.2s; }
+.ref-close:hover { color:var(--text); }
+.ref-body { flex:1; overflow-y:auto; padding:20px 22px 40px; }
+.ref-body::-webkit-scrollbar { width:4px; }
+.ref-body::-webkit-scrollbar-thumb { background:var(--border); }
+.ref-section {
+  display: none;
+  position: relative;
+}
+.ref-section.active { display: block; }
+.ref-section::before {
+  content: 'OrderFlow X';
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 4rem; font-weight: 700;
+  color: rgba(0,184,217,0.04);
+  letter-spacing: 8px; white-space: nowrap;
+  pointer-events: none; user-select: none;
+  z-index: 0;
+}
+
+/* Reference Typography */
+.ref-body h1 { font-size:12.5px; font-weight:700; color:var(--accent); margin:20px 0 5px; padding-bottom:4px; border-bottom:1px solid rgba(0,184,217,0.2); letter-spacing:0.5px; }
+.ref-body h2 { font-size:11px; font-weight:700; color:var(--gold); margin:12px 0 3px; }
+.ref-body p  { font-size:11.5px; color:var(--text); margin:4px 0; line-height:1.65; }
+.ref-body ul { padding-left:16px; margin:4px 0; }
+.ref-body li { font-size:11.5px; margin:2px 0; line-height:1.55; color:var(--text); }
+.ref-body hr { border:none; border-top:0.5px solid var(--border); margin:14px 0; }
+.ref-body .note { color:var(--dim); font-style:italic; font-size:10.5px; margin:4px 0; }
+.ref-body .g  { color:var(--buy);  font-weight:600; }
+.ref-body .r  { color:var(--sell); font-weight:600; }
+.ref-body .go { color:var(--gold); font-weight:600; }
+.ref-body .cy { color:var(--accent); font-weight:600; }
+.ref-body table { width:100%; border-collapse:collapse; margin:8px 0; font-size:10.5px; }
+.ref-body thead tr { background:#0A1520; }
+.ref-body thead th { color:var(--accent); font-weight:600; padding:5px 8px; border:0.5px solid var(--border); text-align:left; }
+.ref-body tbody tr:nth-child(odd)  { background:#04080C; }
+.ref-body tbody tr:nth-child(even) { background:#070D13; }
+.ref-body tbody td { padding:5px 8px; border:0.5px solid var(--border); vertical-align:top; line-height:1.5; }
+.ref-body .doc-footer { text-align:center; font-size:8px; color:#2A3A4A; letter-spacing:2px; margin-top:30px; padding-top:10px; border-top:0.5px solid var(--border); font-family:'Share Tech Mono',monospace; }
+.btn-newcandle { background:transparent; border:2px solid var(--gold); color:var(--gold); width:auto; min-width:140px; height:42px; padding:0 16px; border-radius:3px; cursor:pointer; font-family:'Rajdhani',sans-serif; letter-spacing:2px; font-weight:700; font-size:1rem; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.btn-newcandle:hover { background:rgba(255,214,0,0.1); box-shadow:0 0 12px rgba(255,214,0,0.3); }
+.btn-simulate { background:rgba(255,152,0,0.1); border:2px solid var(--match); color:var(--match); min-width:140px; height:42px; padding:0 16px; border-radius:3px; cursor:pointer; font-family:'Rajdhani',sans-serif; letter-spacing:2px; font-weight:700; font-size:1rem; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.btn-simulate:hover { background:rgba(255,152,0,0.2); box-shadow:0 0 15px rgba(255,152,0,0.4); }
+.btn-reset { background:transparent; border:2px solid var(--dim); color:var(--dim); min-width:140px; height:42px; padding:0 16px; border-radius:3px; cursor:pointer; font-family:'Rajdhani',sans-serif; letter-spacing:2px; font-weight:700; font-size:1rem; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.btn-reset:hover { border-color:var(--text); color:var(--text); }
+.btn-ref { background:rgba(0,184,217,0.08); border:2px solid rgba(0,184,217,0.4); color:var(--accent); height:42px; padding:0 16px; border-radius:3px; cursor:pointer; font-family:'Rajdhani',sans-serif; letter-spacing:2px; font-size:1rem; font-weight:700; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.btn-ref:hover { background:rgba(0,184,217,0.18); box-shadow:0 0 12px rgba(0,184,217,0.3); }
+.candle-status { text-align:center; font-family:'Share Tech Mono',monospace; font-size:0.72rem; margin-bottom:8px; padding:5px; border-radius:3px; }
+.candle-status.recording { background:rgba(0,230,118,0.08); border:1px solid rgba(0,230,118,0.3); color:var(--buy); }
+.candle-status.idle { background:rgba(255,214,0,0.05); border:1px solid rgba(255,214,0,0.2); color:var(--dim); }
+
+.porder { display:flex; justify-content:space-between; align-items:center; padding:4px 8px; margin-bottom:3px; border-radius:2px; font-family:'Share Tech Mono',monospace; font-size:0.72rem; }
+.porder.buy-o { background:rgba(0,230,118,0.07); border-left:2px solid var(--buy); }
+.porder.sell-o { background:rgba(255,61,90,0.07); border-left:2px solid var(--sell); }
+.xbtn { background:transparent; border:1px solid var(--dim); color:var(--dim); padding:1px 5px; font-size:0.6rem; border-radius:2px; cursor:pointer; }
+.xbtn:hover { border-color:var(--sell); color:var(--sell); }
+
+.tlog { max-height:130px; overflow-y:auto; font-family:'Share Tech Mono',monospace; font-size:0.72rem; }
+.tlog::-webkit-scrollbar { width:3px; }
+.tlog::-webkit-scrollbar-thumb { background:var(--border); }
+.tentry { padding:3px 8px; margin-bottom:2px; border-radius:2px; border-left:2px solid; background:rgba(0,0,0,0.3); animation:sIn 0.25s ease; }
+@keyframes sIn { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:translateX(0)} }
+.tentry.matched { border-color:var(--match); color:var(--match); }
+.tentry.pending { border-color:var(--dim); color:var(--dim); }
+.tentry.info { border-color:var(--accent); color:var(--accent); }
+.tentry.up { border-color:var(--buy); color:var(--buy); }
+.tentry.dn { border-color:var(--sell); color:var(--sell); }
+.empty { text-align:center; color:var(--dim); font-size:0.72rem; padding:10px; letter-spacing:1px; }
+
+/* Simulate button grid */
+.sim-btn-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.sim-btn-grid .btn-simulate,
+.sim-btn-grid .btn-newcandle,
+.sim-btn-grid .btn-reset,
+.sim-btn-grid .btn-ref {
+  width: 100%;
+  min-width: unset;
+}
+@media (orientation: landscape) {
+  .sim-btn-grid { grid-template-columns: 1fr 1fr 1fr 1fr; }
+}
+
+#myOrderList::-webkit-scrollbar,
+#pendingList::-webkit-scrollbar { width: 4px; }
+#myOrderList::-webkit-scrollbar-track,
+#pendingList::-webkit-scrollbar-track { background: transparent; }
+#myOrderList::-webkit-scrollbar-thumb { background: rgba(179,136,255,0.35); border-radius: 2px; }
+#pendingList::-webkit-scrollbar-thumb  { background: rgba(0,184,217,0.35);  border-radius: 2px; }
+
+.disclaimer-bar {
+  text-align: center; padding: 10px 16px; margin-top: 6px;
+  font-family: 'Share Tech Mono', monospace; font-size: 0.58rem;
+  color: var(--dim); letter-spacing: 1px; line-height: 1.6;
+  border-top: 1px solid var(--border);
+}
+
+.toast {
+  position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+  background: rgba(255,61,90,0.15); border: 1px solid var(--sell);
+  color: var(--sell); padding: 8px 20px; border-radius: 4px;
+  font-family: 'Share Tech Mono', monospace; font-size: 0.75rem;
+  letter-spacing: 1px; z-index: 2000; opacity: 0;
+  transition: opacity 0.2s; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+
+/* MOB TABS & ACCORDION */
+.mob-tab {
+  flex: 1; padding: 8px 4px; text-align: center;
+  font-family: 'Share Tech Mono', monospace; font-size: 0.65rem;
+  letter-spacing: 2px; color: var(--dim); background: none;
+  border: none; border-bottom: 2px solid transparent; cursor: pointer;
+  transition: all 0.2s;
+}
+.mob-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.acc-header {
+  display: flex; justify-content: space-between; align-items: center;
+  cursor: pointer; user-select: none; margin-bottom: 0;
+}
+.acc-arrow { font-size: 0.7rem; color: var(--dim); transition: transform 0.2s; display: inline-block; }
+.acc-arrow.open { transform: rotate(180deg); }
+.acc-body { overflow: hidden; transition: max-height 0.3s ease; }
+
+.watermark {
+  position: absolute; bottom: 10px; right: 8px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem; letter-spacing: 2px;
+  color: rgba(0,184,217,0.18); pointer-events: none;
+  user-select: none; z-index: 2;
+}
+
+.btn-2col { display:grid; grid-template-columns:1fr 1fr; gap:0; margin-top:8px; border-radius:4px; overflow:hidden; }
+
+.btn-buy {
+  background: linear-gradient(180deg, #00c853 0%, #00923c 100%);
+  border: none; border-right: 1px solid rgba(0,0,0,0.3);
+  color: #fff; font-family: 'Rajdhani', sans-serif;
+  font-size: 0.84rem; font-weight: 700; letter-spacing: 2px;
+  height: 42px; cursor: pointer; transition: filter 0.15s;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+.btn-buy:hover { filter: brightness(1.15); }
+.btn-buy:active { filter: brightness(0.9); }
+
+.btn-buy-mine {
+  background: linear-gradient(180deg, #00695c 0%, #004d40 100%);
+  border: none;
+  color: #a5d6a7; font-family: 'Rajdhani', sans-serif;
+  font-size: 0.84rem; font-weight: 700; letter-spacing: 2px;
+  height: 42px; cursor: pointer; transition: filter 0.15s;
+}
+.btn-buy-mine:hover { filter: brightness(1.2); }
+.btn-buy-mine:active { filter: brightness(0.9); }
+
+.btn-sell {
+  background: linear-gradient(180deg, #e53935 0%, #b71c1c 100%);
+  border: none; border-right: 1px solid rgba(0,0,0,0.3);
+  color: #fff; font-family: 'Rajdhani', sans-serif;
+  font-size: 0.84rem; font-weight: 700; letter-spacing: 2px;
+  height: 42px; cursor: pointer; transition: filter 0.15s;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+.btn-sell:hover { filter: brightness(1.15); }
+.btn-sell:active { filter: brightness(0.9); }
+
+.btn-sell-mine {
+  background: linear-gradient(180deg, #6d1f1f 0%, #4a0f0f 100%);
+  border: none;
+  color: #ef9a9a; font-family: 'Rajdhani', sans-serif;
+  font-size: 0.84rem; font-weight: 700; letter-spacing: 2px;
+  height: 42px; cursor: pointer; transition: filter 0.15s;
+}
+.btn-sell-mine:hover { filter: brightness(1.2); }
+.btn-sell-mine:active { filter: brightness(0.9); }
+.btn-clear-mine { background:transparent; border:1px solid rgba(179,136,255,0.4); color:rgba(179,136,255,0.7); padding:6px 14px; border-radius:3px; cursor:pointer; font-family:'Rajdhani',sans-serif; letter-spacing:2px; font-size:0.85rem; transition:all 0.2s; }
+.btn-clear-mine:hover { border-color:rgba(179,136,255,0.8); color:rgba(179,136,255,1); }
+
+.ibar-labels { display:flex; justify-content:space-between; font-size:0.6rem; color:var(--dim); margin-bottom:3px; }
+.ibar { height:5px; background:var(--border); border-radius:3px; overflow:hidden; }
+.ibar-fill { height:100%; border-radius:3px; transition:width 0.4s,background 0.4s; }
+</style>
+</head>
+<body>
+
+<!-- ===== LICENSE GATE ===== -->
+<div id="licenseGate" style="display:none;position:fixed;inset:0;background:#04080c;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+  <div style="max-width:420px;width:90%;background:#080f18;border:1px solid #0d2030;border-radius:8px;padding:32px 28px;text-align:center;">
+    <div style="font-size:2.5rem;margin-bottom:8px;">🔑</div>
+    <h2 style="font-family:'Share Tech Mono',monospace;color:#00b8d9;letter-spacing:3px;font-size:1.1rem;margin-bottom:6px;">OrderFlow X</h2>
+    <p style="font-family:'Share Tech Mono',monospace;color:#3a6070;font-size:0.7rem;letter-spacing:2px;margin-bottom:24px;">ENTER LICENSE KEY TO CONTINUE</p>
+    <input id="licenseInput" type="text" placeholder="OFX-XXXX-XXXX-XXXX"
+      style="width:100%;background:rgba(0,0,0,0.6);border:1px solid #0d2030;border-radius:4px;color:#b8dce8;padding:12px 14px;font-family:'Share Tech Mono',monospace;font-size:0.9rem;text-align:center;letter-spacing:2px;margin-bottom:12px;outline:none;"
+      onkeydown="if(event.key==='Enter') submitLicense()">
+    <button onclick="submitLicense()"
+      style="width:100%;background:rgba(0,184,217,0.1);border:2px solid #00b8d9;color:#00b8d9;padding:12px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:700;letter-spacing:2px;cursor:pointer;margin-bottom:16px;transition:all 0.2s;"
+      onmouseover="this.style.background='rgba(0,184,217,0.2)'" onmouseout="this.style.background='rgba(0,184,217,0.1)'">
+      ACTIVATE
+    </button>
+    <div id="licenseMsg" style="font-family:'Share Tech Mono',monospace;font-size:0.75rem;min-height:18px;"></div>
+    <p style="font-family:'Share Tech Mono',monospace;color:#1e3a48;font-size:0.6rem;margin-top:20px;letter-spacing:1px;">FOR EDUCATIONAL USE ONLY · NOT FINANCIAL ADVICE</p>
+  </div>
+</div>
+
+<script>
+// ===== LICENSE GATE SCRIPT =====
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwykSalvqv3cv1ZEBBzXYV2TYfS9QOfN5VHFRGj2fhvroWzgRJa7zC10feIhPlmB1vTyw/exec';
+var STORAGE_KEY = 'ofx_license_key';
+var STORAGE_PLAN = 'ofx_license_plan';
+
+function showMsg(msg, color) {
+  var el = document.getElementById('licenseMsg');
+  el.textContent = msg;
+  el.style.color = color || '#ff9800';
+}
+
+function unlockApp() {
+  document.getElementById('licenseGate').style.display = 'none';
+}
+
+function submitLicense() {
+  var key = document.getElementById('licenseInput').value.trim().toUpperCase();
+  if (!key) { showMsg('กรุณากรอก License Key', '#ff3d5a'); return; }
+
+  showMsg('กำลังตรวจสอบ...', '#ffd600');
+
+  fetch(SCRIPT_URL + '?action=validate&key=' + encodeURIComponent(key))
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (data.success) {
+        localStorage.setItem(STORAGE_KEY, key);
+        localStorage.setItem(STORAGE_PLAN, data.plan || 'standard');
+        showMsg('✅ ยืนยันสำเร็จ — ' + (data.plan === 'pro' ? 'Pro' : 'Standard'), '#00e676');
+        setTimeout(unlockApp, 800);
+      } else {
+        showMsg('❌ ' + (data.message || 'Key ไม่ถูกต้อง'), '#ff3d5a');
+      }
+    })
+    .catch(function(){
+      showMsg('⚠️ ไม่สามารถเชื่อมต่อได้ กรุณาลองใหม่', '#ff9800');
+    });
+}
+
+// Check stored key on load
+window.addEventListener('load', function(){
+  var storedKey = localStorage.getItem(STORAGE_KEY);
+  var gate = document.getElementById('licenseGate');
+
+  if (storedKey) {
+    // CHECK only — do not increment activation
+    gate.style.display = 'none';
+    fetch(SCRIPT_URL + '?action=check&key=' + encodeURIComponent(storedKey))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data.success) {
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(STORAGE_PLAN);
+          gate.style.display = 'flex';
+        }
+      })
+      .catch(function(){
+        gate.style.display = 'none'; // network error — allow
+      });
+  } else {
+    gate.style.display = 'flex';
+  }
+});
+</script>
+<div class="wrap">
+<header>
+  <h1>OrderFlow X</h1>
+  <p>ORDER BOOK × CANDLESTICK × ORDER FLOW — v1.01.2</p>
+</header>
+
+<div class="stats-row">
+  <div class="sbox"><span class="sl">LAST PRICE</span><span class="sv" id="sPrice" style="color:var(--gold)">10.00</span></div>
+  <div class="sbox"><span class="sl">BEST BID</span><span class="sv" id="sBid" style="color:var(--buy)">—</span></div>
+  <div class="sbox"><span class="sl">BEST ASK</span><span class="sv" id="sAsk" style="color:var(--sell)">—</span></div>
+  <div class="sbox"><span class="sl">SPREAD</span><span class="sv" id="sSpread" style="color:var(--gold)">—</span></div>
+  <div class="sbox sbox-hide"><span class="sl">BUY VOL</span><span class="sv" id="sBuyVol" style="color:var(--buy)">0</span></div>
+  <div class="sbox sbox-hide"><span class="sl">SELL VOL</span><span class="sv" id="sSellVol" style="color:var(--sell)">0</span></div>
+  <div class="sbox sbox-hide"><span class="sl">TRADES</span><span class="sv" id="sTrades" style="color:var(--accent)">0</span></div>
+  <div class="sbox"><span class="sl">DIRECTION</span><span class="sv" id="sDir" style="color:var(--dim)">—</span></div>
+</div>
+<div class="ibar-wrap">
+  <div class="ibar-labels"><span style="color:var(--sell)">◀ SELL PRESSURE</span><span style="color:var(--buy)">BUY PRESSURE ▶</span></div>
+  <div class="ibar"><div class="ibar-fill" id="ibarFill" style="width:50%;background:var(--dim)"></div></div>
+</div>
+
+<!-- Mobile Tab Bar -->
+<div class="mob-tabs">
+  <button class="mob-tab active" id="mtab-chart" onclick="switchMobTab('chart')">📊 CHART</button>
+  <button class="mob-tab" id="mtab-ob" onclick="switchMobTab('ob')">📖 ORDER BOOK</button>
+  <button class="mob-tab" id="mtab-dom" onclick="switchMobTab('dom')">📈 DOM</button>
+</div>
+
+<div class="top-grid">
+  <div class="panel p-gold mob-panel active" id="mpanel-chart" style="position:relative;">
+    <div class="ptitle" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>▸ CANDLESTICK CHART</span>
+      <div style="display:flex;gap:4px;align-items:center;">
+        <button id="btnCrosshair" onclick="toggleCrosshair()" style="background:transparent;border:1px solid rgba(255,61,90,0.5);color:rgba(255,61,90,0.7);padding:2px 8px;border-radius:3px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:0.7rem;letter-spacing:1px;transition:all 0.2s;height:24px;box-sizing:border-box;">✛ OFF</button>
+        <button onclick="setZoom(-0.25)" style="background:rgba(0,184,217,0.1);border:1px solid var(--accent);color:var(--accent);padding:2px 8px;border-radius:3px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:0.7rem;height:24px;box-sizing:border-box;">−</button>
+        <button onclick="setZoom(0)" style="background:rgba(0,184,217,0.1);border:1px solid var(--accent);color:var(--accent);padding:2px 8px;border-radius:3px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:0.7rem;height:24px;box-sizing:border-box;">1:1</button>
+        <button onclick="setZoom(0.25)" style="background:rgba(0,184,217,0.1);border:1px solid var(--accent);color:var(--accent);padding:2px 8px;border-radius:3px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:0.7rem;height:24px;box-sizing:border-box;">+</button>
+      </div>
+    </div>
+    <canvas id="chartCanvas" height="300"></canvas>
+    <div class="watermark">OrderFlow X © 2026</div>
+  </div>
+
+  <div class="panel p-accent mob-panel" id="mpanel-ob">
+    <div class="ptitle">▸ ORDER BOOK — 10 LEVELS EACH SIDE</div>
+    <div class="ob-header-row">
+      <span>SIDE</span><span style="text-align:right">PRICE</span><span style="text-align:right">VOL</span><span style="text-align:right">TOTAL</span>
+    </div>
+    <div id="askSection"></div>
+    <div class="ob-spread">
+      <div class="ob-price-center" id="obPrice">10.00</div>
+      <div class="ob-sub">
+        <span id="obBid" style="color:var(--buy)">BID —</span>
+        <span id="obSpread">SPD —</span>
+        <span id="obAsk" style="color:var(--sell)">ASK —</span>
+      </div>
+    </div>
+    <div id="bidSection"></div>
+  </div>
+</div>
+
+<div id="forms-original-slot"><div id="main-forms-row" class="forms-row">
+  <div class="panel p-buy">
+    <div class="frow2">
+      <div class="fgroup"><label>TYPE</label>
+        <select id="buyType" onchange="toggleBP()">
+          <option value="market">MARKET</option>
+          <option value="limit">BUY LIMIT</option>
+          <option value="stop">BUY STOP</option>
+        </select>
+      </div>
+      <div class="fgroup"><label>VOL (LOT)</label>
+        <input type="number" id="buyVol" value="1" min="0.1" step="0.1">
+      </div>
+    </div>
+    <div class="fgroup" id="buyPG" style="display:none">
+      <label>ENTRY PRICE</label><input type="number" id="buyPx" step="0.01">
+    </div>
+    <div class="frow2">
+      <div class="fgroup">
+        <label>TP <span style="color:var(--buy);font-size:0.6rem">optional</span></label>
+        <input type="number" id="buyTP" step="0.01" placeholder="0 = off">
+      </div>
+      <div class="fgroup">
+        <label>SL <span style="color:var(--sell);font-size:0.6rem">optional</span></label>
+        <input type="number" id="buySL" step="0.01" placeholder="0 = off">
+      </div>
+    </div>
+    <div class="btn-2col">
+      <button class="btn btn-buy" onclick="doBuy()">BUY</button>
+      <button class="btn btn-buy-mine" onclick="doBuyMine()">MY ORDER</button>
+    </div>
+  </div>
+  <div class="panel p-sell">
+    <div class="frow2">
+      <div class="fgroup"><label>TYPE</label>
+        <select id="sellType" onchange="toggleSP()">
+          <option value="market">MARKET</option>
+          <option value="limit">SELL LIMIT</option>
+          <option value="stop">SELL STOP</option>
+        </select>
+      </div>
+      <div class="fgroup"><label>VOL (LOT)</label>
+        <input type="number" id="sellVol" value="1" min="0.1" step="0.1">
+      </div>
+    </div>
+    <div class="fgroup" id="sellPG" style="display:none">
+      <label>ENTRY PRICE</label><input type="number" id="sellPx" step="0.01">
+    </div>
+    <div class="frow2">
+      <div class="fgroup">
+        <label>TP <span style="color:var(--buy);font-size:0.6rem">optional</span></label>
+        <input type="number" id="sellTP" step="0.01" placeholder="0 = off">
+      </div>
+      <div class="fgroup">
+        <label>SL <span style="color:var(--sell);font-size:0.6rem">optional</span></label>
+        <input type="number" id="sellSL" step="0.01" placeholder="0 = off">
+      </div>
+    </div>
+    <div class="btn-2col">
+      <button class="btn btn-sell" onclick="doSell()">SELL</button>
+      <button class="btn btn-sell-mine" onclick="doSellMine()">MY ORDER</button>
+    </div>
+  </div>
+</div>
+</div><!-- end main-forms-row -->
+</div><!-- end forms-original-slot -->
+
+<!-- DOM Panel -->
+<div class="wrap" style="padding-top:0;padding-bottom:0;">
+<div class="panel p-accent mob-panel" id="mpanel-dom" style="min-height:340px;position:relative;">
+  <div class="ptitle">▸ DEPTH OF MARKET — HORIZONTAL VOLUME PROFILE</div>
+  <canvas id="domCanvas" height="400" style="width:100%;display:block;"></canvas>
+</div>
+
+<!-- Forms row copy for DOM tab (mobile only) -->
+<div id="forms-dom-placeholder"></div>
+
+<div class="panel" style="border-color:rgba(179,136,255,0.3);">
+  <div class="acc-header" onclick="toggleAcc('myOrderAcc','myOrderArrow')">
+    <div class="ptitle" style="color:rgba(179,136,255,0.7);margin-bottom:0;">▸ MY ORDERS</div>
+    <span class="acc-arrow open" id="myOrderArrow">▼</span>
+  </div>
+  <div class="acc-body" id="myOrderAcc" style="max-height:400px;">
+    <div style="padding-top:8px;">
+      <div id="myOrderList" style="max-height:174px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(179,136,255,0.3) transparent;">
+        <div class="empty">NO MY ORDERS</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel p-dim">
+  <div class="acc-header" onclick="toggleAcc('pendingAcc','pendingArrow')">
+    <div class="ptitle" style="margin-bottom:0;">▸ PENDING ORDERS</div>
+    <span class="acc-arrow open" id="pendingArrow">▼</span>
+  </div>
+  <div class="acc-body" id="pendingAcc" style="max-height:400px;">
+    <div style="padding-top:8px;">
+      <div id="pendingList" style="max-height:174px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(0,184,217,0.3) transparent;">
+        <div class="empty">NO PENDING ORDERS</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel p-match">
+  <div class="acc-header" onclick="toggleAcc('logAcc','logArrow')">
+    <div class="ptitle" style="margin-bottom:0;">▸ MATCHING ENGINE LOG</div>
+    <span class="acc-arrow open" id="logArrow">▼</span>
+  </div>
+  <div class="acc-body" id="logAcc" style="max-height:200px;">
+    <div style="padding-top:6px;">
+      <div class="tlog" id="tlog">
+        <div class="tentry info">[ SYSTEM ] OrderFlow X v1.01.2 Ready</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Desktop Simulate Panel -->
+<div class="panel p-match desktop-simulate" style="margin-bottom:10px;">
+  <div class="ptitle">▸ SIMULATE SETTINGS</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+    <div class="fgroup">
+      <label>START PRICE</label>
+      <input type="number" id="simStartPrice" value="10.00" step="0.01" min="0.01">
+    </div>
+    <div class="fgroup">
+      <label>CANDLE COUNT</label>
+      <input type="number" id="simCandleCount" value="15" step="1" min="1" max="200">
+    </div>
+  </div>
+  <div class="sim-btn-grid">
+    <button class="btn-simulate" onclick="runSimulate()">SIMULATE</button>
+    <button class="btn-newcandle" onclick="newCandle()">NEW CANDLE</button>
+    <button class="btn-reset" onclick="reset()">RESET</button>
+    <button class="btn-ref" onclick="openRef()">REFERENCE</button>
+  </div>
+</div>
+
+<div id="candleStatus" class="candle-status idle">🕯 CANDLE — PRESS NEW CANDLE TO BEGIN</div>
+<div id="simStatus" style="display:none;text-align:center;font-family:'Share Tech Mono',monospace;font-size:0.72rem;padding:6px;margin-bottom:8px;background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.3);border-radius:3px;color:var(--match);"></div>
+</div><!-- end wrap -->
+
+<!-- Mobile Sticky Controls -->
+<div class="mob-controls">
+  <div style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+    <div class="fgroup" style="margin:0;">
+      <label>START PRICE</label>
+      <input type="number" id="simStartPriceMob" value="10.00" step="0.01" min="0.01" oninput="document.getElementById('simStartPrice').value=this.value">
+    </div>
+    <div class="fgroup" style="margin:0;">
+      <label>CANDLES</label>
+      <input type="number" id="simCandleCountMob" value="15" step="1" min="1" max="200" oninput="document.getElementById('simCandleCount').value=this.value">
+    </div>
+  </div>
+  <button class="btn-simulate" onclick="runSimulate()">SIMULATE</button>
+  <button class="btn-newcandle" onclick="newCandle()">NEW CANDLE</button>
+  <button class="btn-reset" onclick="reset()">RESET</button>
+  <button class="btn-ref" onclick="openRef()">REFERENCE</button>
+</div>
+
+<div class="disclaimer-bar">
+  ⚠ FOR EDUCATIONAL PURPOSES ONLY &nbsp;·&nbsp; NOT FINANCIAL ADVICE &nbsp;·&nbsp; DOES NOT REPRESENT REAL MARKET DATA &nbsp;·&nbsp; TRADING INVOLVES RISK<br>
+  © 2026 OrderFlow X — All Rights Reserved
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let S = {
+  price: 10.00, prevPrice: 10.00,
+  buyQ: [], sellQ: [], pending: [],
+  limitBuys: {}, limitSells: {},
+  trades: 0, buyVol: 0, sellVol: 0, uid: 1,
+  candles: [],
+  activeCandle: null,
+  myOrders: [],
+  simHighVolNodes: [], // top 3 OB volume nodes from simulation
+  zoom: 1.0,          // 1.0 = normal, <1 = zoom out, >1 = zoom in
+  panOffset: 0,       // candles shifted left (positive = scroll back in time)
+  executedVol: {},    // price.toFixed(2) -> {buy, sell} executed volume
+  TICK: 0.05
+};
+
+function seedBook() {
+  for(let i=1; i<=10; i++) {
+    const ap = parseFloat((S.price + i*S.TICK).toFixed(2));
+    const bp = parseFloat((S.price - i*S.TICK).toFixed(2));
+    S.limitSells[ap.toFixed(2)] = {price:ap, vol:parseFloat((Math.random()*5+1).toFixed(1))};
+    S.limitBuys[bp.toFixed(2)]  = {price:bp, vol:parseFloat((Math.random()*5+1).toFixed(1))};
+  }
+}
+seedBook();
+
+// ===== CANDLE LOGIC — MANUAL CONTROL =====
+// User presses NEW CANDLE to close current and start new one
+// All orders within same candle period accumulate into one candle
+
+function startCandle() {
+  // Only tick into active candle — don't auto-start
+  // Orders accumulate into S.activeCandle if it exists
+}
+
+function tickCandle(price, vol, side) {
+  if (!S.activeCandle) return; // No active candle → ignore (user hasn't started one yet)
+  S.activeCandle.c = price;
+  S.activeCandle.h = Math.max(S.activeCandle.h, price);
+  S.activeCandle.l = Math.min(S.activeCandle.l, price);
+  S.activeCandle.vol += vol;
+  if (side === 'buy') S.activeCandle.bv += vol;
+  else if (side === 'sell') S.activeCandle.sv += vol;
+  updateCandleStatus();
+}
+
+function closeCandle() {
+  // No-op — candle stays open until user presses NEW CANDLE
+}
+
+function newCandle() {
+  // Close current candle (if any) and start fresh
+  if (S.activeCandle) {
+    S.activeCandle.c = S.price;
+    S.activeCandle.h = Math.max(S.activeCandle.h, S.price);
+    S.activeCandle.l = Math.min(S.activeCandle.l, S.price);
+    if (S.activeCandle.vol > 0 || S.activeCandle.o !== S.activeCandle.c) {
+      S.candles.push({...S.activeCandle});
+      if (S.candles.length > 250) S.candles.shift();
+    }
+  }
+  // Start new candle at current price
+  S.activeCandle = { o: S.price, h: S.price, l: S.price, c: S.price, vol: 0, bv: 0, sv: 0 };
+  log(`🕯 NEW CANDLE — Open @ ${S.price.toFixed(2)}`, 'info');
+  updateCandleStatus();
+  ui();
+}
+
+function updateCandleStatus() {
+  const el = document.getElementById('candleStatus');
+  if (!S.activeCandle) {
+    el.className = 'candle-status idle';
+    el.textContent = '🕯 CANDLE — PRESS NEW CANDLE TO BEGIN';
+  } else {
+    const c = S.activeCandle;
+    const isUp = c.c >= c.o;
+    el.className = 'candle-status recording';
+    el.textContent = `● REC  O:${c.o.toFixed(2)}  H:${c.h.toFixed(2)}  L:${c.l.toFixed(2)}  C:${S.price.toFixed(2)}  VOL:${c.vol.toFixed(1)}`;
+    el.style.color = isUp ? 'var(--buy)' : 'var(--sell)';
+    el.style.borderColor = isUp ? 'rgba(0,230,118,0.3)' : 'rgba(255,61,90,0.3)';
+    el.style.background = isUp ? 'rgba(0,230,118,0.06)' : 'rgba(255,61,90,0.06)';
+  }
+}
+
+// ===== FORM TOGGLES =====
+function toggleBP(){
+  const t=document.getElementById('buyType').value;
+  document.getElementById('buyPG').style.display=t!=='market'?'block':'none';
+  if(t!=='market') document.getElementById('buyPx').value=S.price.toFixed(2);
+}
+function toggleSP(){
+  const t=document.getElementById('sellType').value;
+  document.getElementById('sellPG').style.display=t!=='market'?'block':'none';
+  if(t!=='market') document.getElementById('sellPx').value=S.price.toFixed(2);
+}
+
+// ===== LOG =====
+function log(msg, type){
+  type = type || 'info';
+  const el=document.getElementById('tlog');
+  const d=document.createElement('div');
+  d.className='tentry '+type;
+  const t=new Date().toLocaleTimeString('th-TH');
+  d.textContent=`[${t}] ${msg}`;
+  el.insertBefore(d,el.firstChild);
+}
+
+// ===== TOAST =====
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ===== PLACE ORDERS =====
+function doBuy(){
+  const type=document.getElementById('buyType').value;
+  const vol=parseFloat(document.getElementById('buyVol').value)||0;
+  const tp=parseFloat(document.getElementById('buyTP').value)||0;
+  const sl=parseFloat(document.getElementById('buySL').value)||0;
+  if(vol<=0){ toast('⚠ INVALID VOLUME — must be greater than 0'); return; }
+  if(type==='market'){
+    S.buyQ.push({id:S.uid++,vol,rem:vol});
+    S.buyVol+=vol;
+    log(`BUY MARKET — ${vol} lot @ MARKET`,'up');
+    runMatch();
+  } else {
+    const px=parseFloat(document.getElementById('buyPx').value)||0;
+    if(px<=0){ toast('⚠ INVALID PRICE — must be greater than 0'); return; }
+    if(type==='limit' && px>=S.price){ toast('⚠ BUY LIMIT must be below current price'); return; }
+    if(type==='stop'  && px<=S.price){ toast('⚠ BUY STOP must be above current price'); return; }
+    S.pending.push({id:S.uid++,side:'buy',type,price:px,vol,rem:vol});
+    addBook('buy',px,vol);
+    log(`BUY ${type.toUpperCase()} — ${vol} lot @ ${px.toFixed(2)}`,'pending');
+    checkTrig();
+  }
+  if(tp>0){
+    if(tp<=S.price){ toast('⚠ BUY TP must be above current price'); return; }
+    const tpId=S.uid++;
+    S.pending.push({id:tpId, side:'sell', type:'limit', price:tp, vol, rem:vol, tag:'TP'});
+    addBook('sell',tp,vol);
+    log(`TP SET — Sell Limit ${vol} lot @ ${tp.toFixed(2)}`,'info');
+  }
+  if(sl>0){
+    if(sl>=S.price){ toast('⚠ BUY SL must be below current price'); return; }
+    const slId=S.uid++;
+    S.pending.push({id:slId, side:'sell', type:'stop', price:sl, vol, rem:vol, tag:'SL'});
+    log(`SL SET — Sell Stop ${vol} lot @ ${sl.toFixed(2)}`,'info');
+  }
+  ui();
+}
+
+function doSell(){
+  const type=document.getElementById('sellType').value;
+  const vol=parseFloat(document.getElementById('sellVol').value)||0;
+  const tp=parseFloat(document.getElementById('sellTP').value)||0;
+  const sl=parseFloat(document.getElementById('sellSL').value)||0;
+  if(vol<=0){ toast('⚠ INVALID VOLUME — must be greater than 0'); return; }
+  if(type==='market'){
+    S.sellQ.push({id:S.uid++,vol,rem:vol});
+    S.sellVol+=vol;
+    log(`SELL MARKET — ${vol} lot @ MARKET`,'dn');
+    runMatch();
+  } else {
+    const px=parseFloat(document.getElementById('sellPx').value)||0;
+    if(px<=0){ toast('⚠ INVALID PRICE — must be greater than 0'); return; }
+    if(type==='limit' && px<=S.price){ toast('⚠ SELL LIMIT must be above current price'); return; }
+    if(type==='stop'  && px>=S.price){ toast('⚠ SELL STOP must be below current price'); return; }
+    S.pending.push({id:S.uid++,side:'sell',type,price:px,vol,rem:vol});
+    addBook('sell',px,vol);
+    log(`SELL ${type.toUpperCase()} — ${vol} lot @ ${px.toFixed(2)}`,'pending');
+    checkTrig();
+  }
+  if(tp>0){
+    if(tp>=S.price){ toast('⚠ SELL TP must be below current price'); return; }
+    S.pending.push({id:S.uid++, side:'buy', type:'limit', price:tp, vol, rem:vol, tag:'TP'});
+    addBook('buy',tp,vol);
+    log(`TP SET — Buy Limit ${vol} lot @ ${tp.toFixed(2)}`,'info');
+  }
+  if(sl>0){
+    if(sl<=S.price){ toast('⚠ SELL SL must be above current price'); return; }
+    S.pending.push({id:S.uid++, side:'buy', type:'stop', price:sl, vol, rem:vol, tag:'SL'});
+    log(`SL SET — Buy Stop ${vol} lot @ ${sl.toFixed(2)}`,'info');
+  }
+  ui();
+}
+
+// ===== MY ORDER =====
+function doBuyMine(){
+  const type=document.getElementById('buyType').value;
+  const vol=parseFloat(document.getElementById('buyVol').value)||0;
+  const tp=parseFloat(document.getElementById('buyTP').value)||0;
+  const sl=parseFloat(document.getElementById('buySL').value)||0;
+  if(vol<=0){ toast('⚠ INVALID VOLUME — must be greater than 0'); return; }
+
+  let entryPrice = S.price;
+
+  if(type==='market'){
+    // Validate TP/SL BEFORE executing
+    if(tp>0 && tp<=S.price){ toast('⚠ BUY TP must be above current price'); return; }
+    if(sl>0 && sl>=S.price){ toast('⚠ BUY SL must be below current price'); return; }
+    S.buyQ.push({id:S.uid++,vol,rem:vol});
+    S.buyVol+=vol;
+    log(`📌 MY BUY MARKET — ${vol} lot @ MARKET`,'up');
+    runMatch();
+    entryPrice = S.price; // capture AFTER match for actual fill price
+    if(tp>0){
+      S.pending.push({id:S.uid++, side:'sell', type:'limit', price:tp, vol, rem:vol, tag:'TP'});
+      addBook('sell',tp,vol);
+      log(`TP SET — Sell Limit ${vol} lot @ ${tp.toFixed(2)}`,'info');
+    }
+    if(sl>0){
+      S.pending.push({id:S.uid++, side:'sell', type:'stop', price:sl, vol, rem:vol, tag:'SL'});
+      log(`SL SET — Sell Stop ${vol} lot @ ${sl.toFixed(2)}`,'info');
+    }
+    S.myOrders.push({ id:S.uid++, side:'buy', type, entry:entryPrice, tp:tp||null, sl:sl||null, triggered:true, pendingId:null });
+  } else {
+    const px=parseFloat(document.getElementById('buyPx').value)||0;
+    if(px<=0){ toast('⚠ INVALID PRICE — must be greater than 0'); return; }
+    if(type==='limit' && px>=S.price){ toast('⚠ BUY LIMIT must be below current price'); return; }
+    if(type==='stop'  && px<=S.price){ toast('⚠ BUY STOP must be above current price'); return; }
+    if(tp>0 && tp<=S.price){ toast('⚠ BUY TP must be above current price'); return; }
+    if(sl>0 && sl>=S.price){ toast('⚠ BUY SL must be below current price'); return; }
+    entryPrice = px;
+    const pendingId = S.uid++;
+    S.pending.push({id:pendingId,side:'buy',type,price:px,vol,rem:vol});
+    addBook('buy',px,vol);
+    log(`📌 MY BUY ${type.toUpperCase()} — ${vol} lot @ ${px.toFixed(2)}`,'pending');
+    checkTrig();
+    if(tp>0){
+      S.pending.push({id:S.uid++, side:'sell', type:'limit', price:tp, vol, rem:vol, tag:'TP'});
+      addBook('sell',tp,vol);
+      log(`TP SET — Sell Limit ${vol} lot @ ${tp.toFixed(2)}`,'info');
+    }
+    if(sl>0){
+      S.pending.push({id:S.uid++, side:'sell', type:'stop', price:sl, vol, rem:vol, tag:'SL'});
+      log(`SL SET — Sell Stop ${vol} lot @ ${sl.toFixed(2)}`,'info');
+    }
+    S.myOrders.push({ id:S.uid++, side:'buy', type, entry:entryPrice, tp:tp||null, sl:sl||null, triggered:false, pendingId });
+  }
+  ui();
+}
+
+function doSellMine(){
+  const type=document.getElementById('sellType').value;
+  const vol=parseFloat(document.getElementById('sellVol').value)||0;
+  const tp=parseFloat(document.getElementById('sellTP').value)||0;
+  const sl=parseFloat(document.getElementById('sellSL').value)||0;
+  if(vol<=0){ toast('⚠ INVALID VOLUME — must be greater than 0'); return; }
+
+  let entryPrice = S.price;
+
+  if(type==='market'){
+    // Validate TP/SL BEFORE executing
+    if(tp>0 && tp>=S.price){ toast('⚠ SELL TP must be below current price'); return; }
+    if(sl>0 && sl<=S.price){ toast('⚠ SELL SL must be above current price'); return; }
+    S.sellQ.push({id:S.uid++,vol,rem:vol});
+    S.sellVol+=vol;
+    log(`📌 MY SELL MARKET — ${vol} lot @ MARKET`,'dn');
+    runMatch();
+    entryPrice = S.price; // capture AFTER match for actual fill price
+    if(tp>0){
+      S.pending.push({id:S.uid++, side:'buy', type:'limit', price:tp, vol, rem:vol, tag:'TP'});
+      addBook('buy',tp,vol);
+      log(`TP SET — Buy Limit ${vol} lot @ ${tp.toFixed(2)}`,'info');
+    }
+    if(sl>0){
+      S.pending.push({id:S.uid++, side:'buy', type:'stop', price:sl, vol, rem:vol, tag:'SL'});
+      log(`SL SET — Buy Stop ${vol} lot @ ${sl.toFixed(2)}`,'info');
+    }
+    S.myOrders.push({ id:S.uid++, side:'sell', type, entry:entryPrice, tp:tp||null, sl:sl||null, triggered:true, pendingId:null });
+  } else {
+    const px=parseFloat(document.getElementById('sellPx').value)||0;
+    if(px<=0){ toast('⚠ INVALID PRICE — must be greater than 0'); return; }
+    if(type==='limit' && px<=S.price){ toast('⚠ SELL LIMIT must be above current price'); return; }
+    if(type==='stop'  && px>=S.price){ toast('⚠ SELL STOP must be below current price'); return; }
+    if(tp>0 && tp>=S.price){ toast('⚠ SELL TP must be below current price'); return; }
+    if(sl>0 && sl<=S.price){ toast('⚠ SELL SL must be above current price'); return; }
+    entryPrice = px;
+    const pendingId = S.uid++;
+    S.pending.push({id:pendingId,side:'sell',type,price:px,vol,rem:vol});
+    addBook('sell',px,vol);
+    log(`📌 MY SELL ${type.toUpperCase()} — ${vol} lot @ ${px.toFixed(2)}`,'pending');
+    checkTrig();
+    if(tp>0){
+      S.pending.push({id:S.uid++, side:'buy', type:'limit', price:tp, vol, rem:vol, tag:'TP'});
+      addBook('buy',tp,vol);
+      log(`TP SET — Buy Limit ${vol} lot @ ${tp.toFixed(2)}`,'info');
+    }
+    if(sl>0){
+      S.pending.push({id:S.uid++, side:'buy', type:'stop', price:sl, vol, rem:vol, tag:'SL'});
+      log(`SL SET — Buy Stop ${vol} lot @ ${sl.toFixed(2)}`,'info');
+    }
+    S.myOrders.push({ id:S.uid++, side:'sell', type, entry:entryPrice, tp:tp||null, sl:sl||null, triggered:false, pendingId });
+  }
+  ui();
+}
+
+function addBook(side,px,vol){
+  const bk=side==='buy'?S.limitBuys:S.limitSells;
+  const k=px.toFixed(2);
+  if(!bk[k]) bk[k]={price:px,vol:0};
+  bk[k].vol=parseFloat((bk[k].vol+vol).toFixed(2));
+}
+function remBook(side,px,vol){
+  const bk=side==='buy'?S.limitBuys:S.limitSells;
+  const k=px.toFixed(2);
+  if(bk[k]){ bk[k].vol=parseFloat((bk[k].vol-vol).toFixed(2)); if(bk[k].vol<=0.001) delete bk[k]; }
+}
+
+// ===== MATCHING ENGINE =====
+function recordExec(price, vol, side){
+  const k = price.toFixed(2);
+  if(!S.executedVol[k]) S.executedVol[k] = {buy:0, sell:0};
+  S.executedVol[k][side] += vol;
+}
+
+function runMatch(){
+  // Market vs Market first
+  while(S.buyQ.length>0 && S.sellQ.length>0){
+    const b=S.buyQ[0], s=S.sellQ[0];
+    const mv=Math.min(b.rem,s.rem);
+    S.trades++; b.rem-=mv; s.rem-=mv;
+    recordExec(S.price, mv, 'buy');
+    recordExec(S.price, mv, 'sell');
+    tickCandle(S.price, mv, 'match');
+    log(`✦ MATCH (M×M) — ${mv} lot @ ${S.price.toFixed(2)}`,'matched');
+    if(b.rem<=0.001) S.buyQ.shift();
+    if(s.rem<=0.001) S.sellQ.shift();
+  }
+
+  // Market Buy vs Sell Limits
+  let iter=0;
+  while(S.buyQ.length>0 && iter<100){
+    iter++;
+    const asks=getSortedAsks();
+    if(asks.length===0){ log(`⚠ BUY WAITING — Order Book empty`,'info'); break; }
+    const bestAsk=asks[0];
+    const b=S.buyQ[0];
+    const mv=Math.min(b.rem, bestAsk.vol);
+    b.rem=parseFloat((b.rem-mv).toFixed(2));
+    bestAsk.vol=parseFloat((bestAsk.vol-mv).toFixed(2));
+    S.trades++;
+    S.prevPrice=S.price;
+    S.price=bestAsk.price;
+    recordExec(S.price, mv, 'buy');
+    tickCandle(S.price, mv, 'buy');
+    log(`✦ MATCH (Buy×SellLimit) — ${mv} lot @ ${bestAsk.price.toFixed(2)}`,'matched');
+    if(bestAsk.vol<=0.001) delete S.limitSells[bestAsk.price.toFixed(2)];
+    else S.limitSells[bestAsk.price.toFixed(2)].vol=bestAsk.vol;
+    if(b.rem<=0.001){ S.buyQ.shift(); break; } // stop after order filled
+  }
+  if(iter>0) replenishBook();
+
+  // Market Sell vs Buy Limits
+  iter=0;
+  while(S.sellQ.length>0 && iter<100){
+    iter++;
+    const bids=getSortedBids();
+    if(bids.length===0){ log(`⚠ SELL WAITING — Order Book empty`,'info'); break; }
+    const bestBid=bids[0];
+    const s=S.sellQ[0];
+    const mv=Math.min(s.rem, bestBid.vol);
+    s.rem=parseFloat((s.rem-mv).toFixed(2));
+    bestBid.vol=parseFloat((bestBid.vol-mv).toFixed(2));
+    S.trades++;
+    S.prevPrice=S.price;
+    S.price=bestBid.price;
+    recordExec(S.price, mv, 'sell');
+    tickCandle(S.price, mv, 'sell');
+    log(`✦ MATCH (Sell×BuyLimit) — ${mv} lot @ ${bestBid.price.toFixed(2)}`,'matched');
+    if(bestBid.vol<=0.001) delete S.limitBuys[bestBid.price.toFixed(2)];
+    else S.limitBuys[bestBid.price.toFixed(2)].vol=bestBid.vol;
+    if(s.rem<=0.001){ S.sellQ.shift(); break; } // stop after order filled
+  }
+  if(iter>0) replenishBook();
+
+  // Check triggers AFTER matching complete — cascades handled in next runMatch call
+  checkTrig();
+}
+
+function checkTrig(){
+  let hit=false;
+  S.pending=S.pending.filter(o=>{
+    let trig=false;
+    if(o.type==='stop'){
+      if(o.side==='buy'&&S.price>=o.price) trig=true;
+      if(o.side==='sell'&&S.price<=o.price) trig=true;
+    } else if(o.type==='limit'){
+      if(o.side==='buy'&&S.price<=o.price) trig=true;
+      if(o.side==='sell'&&S.price>=o.price) trig=true;
+    }
+    if(trig){
+      const label = o.tag ? o.tag : `${o.side.toUpperCase()} ${o.type.toUpperCase()}`;
+      const logType = o.tag==='TP' ? 'matched' : o.tag==='SL' ? 'dn' : 'matched';
+      log(`⚡ ${label} HIT — ${o.side.toUpperCase()} ${o.type.toUpperCase()} @ ${o.price.toFixed(2)} → MARKET`, logType);
+      remBook(o.side,o.price,o.vol);
+      if(o.side==='buy'){S.buyQ.push({id:o.id,vol:o.vol,rem:o.rem});S.buyVol+=o.vol;}
+      else{S.sellQ.push({id:o.id,vol:o.vol,rem:o.rem});S.sellVol+=o.vol;}
+      // Mark myOrder as triggered when entry pendingId hits
+      const hitMO = S.myOrders.find(m => m.pendingId === o.id);
+      if(hitMO) hitMO.triggered = true;
+
+      // Remove matched myOrder lines from chart when TP/SL hit
+      if(o.tag==='TP'||o.tag==='SL'){
+        S.myOrders = S.myOrders.filter(m => {
+          if(o.tag==='TP') return !(m.tp && Math.abs(m.tp - o.price) < 0.001);
+          if(o.tag==='SL') return !(m.sl && Math.abs(m.sl - o.price) < 0.001);
+          return true;
+        });
+      }
+      hit=true; return false;
+    }
+    return true;
+  });
+  if(hit) runMatch();
+}
+
+function cancelOrder(id){
+  const idx=S.pending.findIndex(o=>o.id===id);
+  if(idx===-1) return;
+  const o=S.pending[idx];
+  S.pending.splice(idx,1);
+  remBook(o.side,o.price,o.vol);
+  log(`✕ CANCELLED — ${o.tag||''} ${o.side.toUpperCase()} ${o.type.toUpperCase()} @ ${o.price.toFixed(2)}`,'pending');
+
+  // If cancelling TP → also cancel paired SL (same vol, opposite tag)
+  // If cancelling SL → also cancel paired TP
+  if(o.tag==='TP' || o.tag==='SL'){
+    const pairedTag = o.tag==='TP' ? 'SL' : 'TP';
+    const pairedIdx = S.pending.findIndex(p => p.tag===pairedTag && p.vol===o.vol);
+    if(pairedIdx!==-1){
+      const p=S.pending[pairedIdx];
+      S.pending.splice(pairedIdx,1);
+      remBook(p.side,p.price,p.vol);
+      log(`✕ AUTO-CANCELLED paired ${pairedTag} @ ${p.price.toFixed(2)}`,'pending');
+    }
+  }
+  ui();
+}
+
+function getSortedAsks(){ return Object.values(S.limitSells).sort((a,b)=>a.price-b.price); }
+function getSortedBids(){ return Object.values(S.limitBuys).sort((a,b)=>b.price-a.price); }
+
+function replenishBook() {
+  const base = S.price;
+
+  // Remove stale orders that crossed to wrong side of price
+  Object.keys(S.limitSells).forEach(function(k){
+    var p = parseFloat(k);
+    if(p < base) delete S.limitSells[k]; // Sell Limit must be AT or ABOVE price
+  });
+  Object.keys(S.limitBuys).forEach(function(k){
+    var p = parseFloat(k);
+    if(p > base) delete S.limitBuys[k];  // Buy Limit must be AT or BELOW price
+  });
+
+  // Refill levels near current price
+  for(var i=1; i<=10; i++) {
+    var ap = parseFloat((base + i*S.TICK).toFixed(2));
+    var bp = parseFloat((base - i*S.TICK).toFixed(2));
+    if(!S.limitSells[ap.toFixed(2)] || S.limitSells[ap.toFixed(2)].vol < 0.5) {
+      S.limitSells[ap.toFixed(2)] = {price:ap, vol:parseFloat((Math.random()*3+0.5).toFixed(1))};
+    }
+    if(!S.limitBuys[bp.toFixed(2)] || S.limitBuys[bp.toFixed(2)].vol < 0.5) {
+      S.limitBuys[bp.toFixed(2)] = {price:bp, vol:parseFloat((Math.random()*3+0.5).toFixed(1))};
+    }
+  }
+
+  // Remove orders too far from price
+  var maxDist = S.TICK * 15;
+  Object.keys(S.limitSells).forEach(function(k){ if(Math.abs(parseFloat(k)-base)>maxDist) delete S.limitSells[k]; });
+  Object.keys(S.limitBuys).forEach(function(k){ if(Math.abs(parseFloat(k)-base)>maxDist) delete S.limitBuys[k]; });
+}
+
+// ===== HVN — recalculate from current Order Book =====
+function updateHVN(){
+  const allNodes = [
+    ...getSortedAsks().map(a => ({ price:a.price, vol:a.vol, side:'sell' })),
+    ...getSortedBids().map(b => ({ price:b.price, vol:b.vol, side:'buy' }))
+  ];
+  allNodes.sort((a,b) => b.vol - a.vol);
+  S.simHighVolNodes = allNodes.slice(0, 3);
+}
+
+// ===== ZOOM & PAN =====
+function setZoom(delta){
+  if(delta === 0){ S.zoom = 1.0; S.panOffset = 0; drawChart(); }
+  else { applyZoom(S.zoom + delta); }
+}
+
+// ===== DOM (Depth of Market) =====
+const domCanvas = document.getElementById('domCanvas');
+const domCtx = domCanvas ? domCanvas.getContext('2d') : null;
+
+function resizeDom(){
+  if(!domCanvas || !domCtx) return;
+  var dpr = window.devicePixelRatio || 1;
+  var w = domCanvas.offsetWidth || domCanvas.parentElement.offsetWidth || 360;
+  var h = 400;
+  domCanvas.width  = Math.round(w * dpr);
+  domCanvas.height = Math.round(h * dpr);
+  domCanvas.style.width  = w + 'px';
+  domCanvas.style.height = h + 'px';
+  domCtx.setTransform(1, 0, 0, 1, 0, 0);
+  domCtx.scale(dpr, dpr);
+  domCtx.imageSmoothingEnabled = false;
+}
+
+function makePat(ctx, r, g, b, alpha, size){
+  if(!ctx) return null;
+  return 'rgba('+r+','+g+','+b+','+alpha+')';
+}
+
+function drawDom(){
+  if(!domCanvas || !domCtx) return;
+  var dpr = window.devicePixelRatio || 1;
+  var W = domCanvas.offsetWidth || 360;
+  var H = 400;
+  domCtx.clearRect(0,0,W,H);
+  domCtx.fillStyle='#030810'; domCtx.fillRect(0,0,W,H);
+
+  // === CONTINUOUS PRICE GRID (like FXSSI) ===
+  // Show 20 levels above and 20 levels below current price
+  var LEVELS = 20;
+  var tick = S.TICK || 0.05;
+  var levels = [];
+  for(var i = LEVELS; i >= -LEVELS; i--){
+    var px = parseFloat((S.price + i * tick).toFixed(2));
+    var k  = px.toFixed(2);
+    var above = px > S.price;
+    var below = px < S.price;
+    var leftVol=0, rightVol=0, leftIsOrange=true, rightIsOrange=false;
+    if(above){
+      leftVol  = S.limitSells[k] ? S.limitSells[k].vol : 0;
+      rightVol = S.executedVol[k] ? S.executedVol[k].buy : 0;
+      leftIsOrange=true; rightIsOrange=false;
+    } else if(below){
+      leftVol  = S.executedVol[k] ? S.executedVol[k].sell : 0;
+      rightVol = S.limitBuys[k] ? S.limitBuys[k].vol : 0;
+      leftIsOrange=false; rightIsOrange=true;
+    } else {
+      // At current price — neutral row
+      leftVol  = S.limitSells[k] ? S.limitSells[k].vol : 0;
+      rightVol = S.limitBuys[k]  ? S.limitBuys[k].vol  : 0;
+      leftIsOrange=true; rightIsOrange=true;
+    }
+    levels.push({ price:px, above:above, below:below,
+                  leftVol:leftVol, rightVol:rightVol,
+                  leftIsOrange:leftIsOrange, rightIsOrange:rightIsOrange });
+  }
+
+  // Patterns
+  var patOrange = makePat(domCtx,255,140,30,0.9) || 'rgba(255,150,40,0.85)';
+  var patTeal   = makePat(domCtx,0,190,170,0.9)  || 'rgba(0,200,180,0.85)';
+
+  // === PERCENTAGES — denominator = ALL volume in book ===
+  var aboveLv = levels.filter(function(l){ return l.above; });
+  var belowLv = levels.filter(function(l){ return l.below; });
+  var atLv    = levels.filter(function(l){ return !l.above && !l.below; });
+  function sumL(arr,fn){ var s=0; arr.forEach(function(l){ s+=fn(l); }); return s; }
+
+  // Total = all limitSells + all limitBuys + all executedVol
+  var totSell = Object.values(S.limitSells).reduce(function(s,v){ return s+v.vol; },0);
+  var totBuy  = Object.values(S.limitBuys).reduce(function(s,v){ return s+v.vol; },0);
+  var totExec = Object.values(S.executedVol).reduce(function(s,v){ return s+v.buy+v.sell; },0);
+  var tot = (totSell + totBuy + totExec) || 1;
+
+  function pctF(v){ return ((v/tot)*100).toFixed(2); }
+
+  var pTL = pctF(sumL(aboveLv,function(l){ return l.leftVol;  }));  // Sell Limit above
+  var pTR = pctF(sumL(aboveLv,function(l){ return l.rightVol; }));  // Buy Stop above
+  var pBL = pctF(sumL(belowLv,function(l){ return l.leftVol;  }));  // Sell Stop below
+  var pBR = pctF(sumL(belowLv,function(l){ return l.rightVol; }));  // Buy Limit below
+  var pCP = pctF(sumL(atLv,   function(l){ return l.leftVol+l.rightVol; })); // at current price
+
+  // === LAYOUT ===
+  var PCT_H=32, PCT_BH=32;
+  var CHART_H = H - PCT_H - PCT_BH;
+  var midX = Math.floor(W/2);
+  var PRICE_W = 56, BAR_MAX = midX - PRICE_W/2 - 4;
+  var rowH = Math.floor(CHART_H / levels.length);
+  if(rowH < 6) rowH = 6;
+
+  // maxVol for bar scaling
+  var vols = levels.map(function(l){ return Math.max(l.leftVol,l.rightVol); });
+  vols.push(1);
+  var maxVol = Math.max.apply(null, vols);
+
+  // === TOP HEADER ===
+  domCtx.fillStyle='rgba(255,140,30,0.15)'; domCtx.fillRect(0,0,midX,PCT_H);
+  domCtx.fillStyle='rgba(0,190,170,0.15)';  domCtx.fillRect(midX,0,W-midX,PCT_H);
+  domCtx.font='bold 7px Share Tech Mono';
+  domCtx.fillStyle='rgba(255,160,50,0.8)'; domCtx.textAlign='center';
+  domCtx.fillText('SELL LIMIT', midX/2, 10);
+  domCtx.fillStyle='rgba(0,210,190,0.8)'; domCtx.textAlign='center';
+  domCtx.fillText('BUY STOP', midX+(W-midX)/2, 10);
+  domCtx.font='bold 13px Share Tech Mono';
+  domCtx.fillStyle='rgba(255,160,50,1)'; domCtx.textAlign='center';
+  domCtx.fillText(pTL+'%', midX/2, PCT_H-6);
+  domCtx.fillStyle='rgba(0,210,190,1)';  domCtx.textAlign='center';
+  domCtx.fillText(pTR+'%', midX+(W-midX)/2, PCT_H-6);
+
+  // === BOTTOM FOOTER ===
+  domCtx.fillStyle='rgba(0,190,170,0.15)';  domCtx.fillRect(0,H-PCT_BH,midX,PCT_BH);
+  domCtx.fillStyle='rgba(255,140,30,0.15)'; domCtx.fillRect(midX,H-PCT_BH,W-midX,PCT_BH);
+  domCtx.font='bold 7px Share Tech Mono';
+  domCtx.fillStyle='rgba(0,210,190,0.8)'; domCtx.textAlign='center';
+  domCtx.fillText('SELL STOP', midX/2, H-PCT_BH+10);
+  domCtx.fillStyle='rgba(255,160,50,0.8)'; domCtx.textAlign='center';
+  domCtx.fillText('BUY LIMIT', midX+(W-midX)/2, H-PCT_BH+10);
+  domCtx.font='bold 13px Share Tech Mono';
+  domCtx.fillStyle='rgba(0,210,190,1)';  domCtx.textAlign='center';
+  domCtx.fillText(pBL+'%', midX/2, H-8);
+  domCtx.fillStyle='rgba(255,160,50,1)'; domCtx.textAlign='center';
+  domCtx.fillText(pBR+'%', midX+(W-midX)/2, H-8);
+
+  // Dividers
+  domCtx.strokeStyle='rgba(255,255,255,0.08)'; domCtx.lineWidth=1;
+  domCtx.beginPath(); domCtx.moveTo(0,PCT_H); domCtx.lineTo(W,PCT_H); domCtx.stroke();
+  domCtx.beginPath(); domCtx.moveTo(0,H-PCT_BH); domCtx.lineTo(W,H-PCT_BH); domCtx.stroke();
+  domCtx.beginPath(); domCtx.moveTo(midX,0); domCtx.lineTo(midX,H); domCtx.stroke();
+
+  // === DRAW ROWS ===
+  for(var bi=0; bi<levels.length; bi++){
+    var level = levels[bi];
+    var y = PCT_H + bi*rowH;
+    if(y > H-PCT_BH-rowH) continue;
+
+    var isCP  = !level.above && !level.below;
+    var isHVN = false;
+    for(var hi=0; hi<S.simHighVolNodes.length; hi++){
+      if(Math.abs(S.simHighVolNodes[hi].price-level.price)<0.001){ isHVN=true; break; }
+    }
+
+    // Current price row highlight
+    if(isCP){
+      domCtx.fillStyle='rgba(255,215,0,0.06)';
+      domCtx.fillRect(0,y,W,rowH);
+    } else if(isHVN){
+      domCtx.fillStyle='rgba(255,255,255,0.04)';
+      domCtx.fillRect(0,y,W,rowH);
+    }
+
+    // Left bar
+    if(level.leftVol > 0){
+      var bwL = Math.round((level.leftVol/maxVol)*BAR_MAX);
+      domCtx.fillStyle = level.leftIsOrange ? patOrange : patTeal;
+      domCtx.fillRect(midX-PRICE_W/2-bwL, y+1, bwL, rowH-2);
+      if(level.leftVol>=1 && rowH>=9){
+        domCtx.fillStyle=level.leftIsOrange?'rgba(255,160,60,0.9)':'rgba(0,210,190,0.9)';
+        domCtx.font='7px Share Tech Mono'; domCtx.textAlign='right';
+        domCtx.fillText(level.leftVol.toFixed(1), midX-PRICE_W/2-bwL-2, y+rowH-1);
+      }
+    }
+
+    // Right bar
+    if(level.rightVol > 0){
+      var bwR = Math.round((level.rightVol/maxVol)*BAR_MAX);
+      domCtx.fillStyle = level.rightIsOrange ? patOrange : patTeal;
+      domCtx.fillRect(midX+PRICE_W/2, y+1, bwR, rowH-2);
+      if(level.rightVol>=1 && rowH>=9){
+        domCtx.fillStyle=level.rightIsOrange?'rgba(255,160,60,0.9)':'rgba(0,210,190,0.9)';
+        domCtx.font='7px Share Tech Mono'; domCtx.textAlign='left';
+        domCtx.fillText(level.rightVol.toFixed(1), midX+PRICE_W/2+bwR+2, y+rowH-1);
+      }
+    }
+
+    // Price label — show only .00 and .50 levels (round numbers)
+    var dec = Math.round((level.price % 1) * 100);
+    var isRound = (dec === 0 || dec === 50);
+    if(isCP){
+      domCtx.fillStyle='#FFD700';
+      domCtx.font='bold 9px Share Tech Mono';
+      domCtx.textAlign='center';
+      domCtx.fillText(level.price.toFixed(2), midX, y+rowH-1);
+    } else if(isHVN){
+      domCtx.fillStyle='#cccccc';
+      domCtx.font='bold 8px Share Tech Mono';
+      domCtx.textAlign='center';
+      domCtx.fillText(level.price.toFixed(2), midX, y+rowH-1);
+    } else if(isRound){
+      domCtx.fillStyle='#2a5060';
+      domCtx.font='8px Share Tech Mono';
+      domCtx.textAlign='center';
+      domCtx.fillText(level.price.toFixed(2), midX, y+rowH-1);
+    }
+  }
+
+  // Current price dashed line — leave gap at center for label
+  var cpY = PCT_H + LEVELS * rowH + rowH/2;
+  var midX = Math.floor(W/2);
+  var LABEL_W = 56; // gap width for price text
+  domCtx.strokeStyle='rgba(255,215,0,0.85)'; domCtx.lineWidth=1;
+  domCtx.setLineDash([5,4]);
+  // left side
+  domCtx.beginPath(); domCtx.moveTo(0,cpY); domCtx.lineTo(midX-LABEL_W/2-2,cpY); domCtx.stroke();
+  // right side
+  domCtx.beginPath(); domCtx.moveTo(midX+LABEL_W/2+2,cpY); domCtx.lineTo(W,cpY); domCtx.stroke();
+  domCtx.setLineDash([]);
+  // price label background + text
+  domCtx.fillStyle='rgba(255,215,0,0.15)';
+  domCtx.fillRect(midX-LABEL_W/2, cpY-8, LABEL_W, 16);
+  domCtx.fillStyle='#FFD700';
+  domCtx.font='bold 9px Share Tech Mono';
+  domCtx.textAlign='center';
+  domCtx.fillText(S.price.toFixed(2), midX, cpY+4);
+
+  // HVN labels
+  for(var ni=0; ni<S.simHighVolNodes.length; ni++){
+    var n = S.simHighVolNodes[ni];
+    var nIdx = -1;
+    for(var nj=0; nj<levels.length; nj++){
+      if(Math.abs(levels[nj].price-n.price)<0.001){ nIdx=nj; break; }
+    }
+    if(nIdx<0) continue;
+    var ny = PCT_H+nIdx*rowH+rowH/2;
+    domCtx.fillStyle=n.side==='sell'?'rgba(255,160,50,0.9)':'rgba(0,210,190,0.9)';
+    domCtx.font='bold 7px Share Tech Mono'; domCtx.textAlign='right';
+    domCtx.fillText('HVN'+(ni+1), W-2, ny+3);
+  }
+}
+
+// ===== DOM CROSSHAIR =====
+var domCrosshairY = -1;
+
+function drawDomCrosshair(clientY){
+  if(!domCanvas || !domCtx) return;
+  var rect = domCanvas.getBoundingClientRect();
+  var y = clientY - rect.top;
+  var W = domCanvas.offsetWidth || 360;
+  var H = 400;
+  var PCT_H = 32, PCT_BH = 32, CHART_H = H - PCT_H - PCT_BH;
+  var LEVELS = 20;
+  var tick = S.TICK || 0.05;
+  var rowH = Math.max(7, Math.floor(CHART_H / (LEVELS*2+1)));
+  var slotFromTop = (y - PCT_H) / rowH;
+  var priceAtY = S.price + (LEVELS - slotFromTop) * tick;
+
+  drawDom(); // redraw base first
+
+  // Crosshair line
+  domCtx.strokeStyle = 'rgba(255,255,255,0.6)';
+  domCtx.lineWidth = 1;
+  domCtx.setLineDash([4,4]);
+  domCtx.beginPath(); domCtx.moveTo(0,y); domCtx.lineTo(W,y); domCtx.stroke();
+  domCtx.setLineDash([]);
+
+  // Price badge
+  var midX = Math.floor(W/2);
+  domCtx.fillStyle = 'rgba(255,255,255,0.92)';
+  domCtx.fillRect(midX - 32, y - 11, 64, 15);
+  domCtx.fillStyle = '#000';
+  domCtx.font = 'bold 9px Share Tech Mono';
+  domCtx.textAlign = 'center';
+  domCtx.fillText(priceAtY.toFixed(2), midX, y + 2);
+}
+
+domCanvas.addEventListener('mousemove', function(e){
+  drawDomCrosshair(e.clientY);
+});
+domCanvas.addEventListener('mouseleave', function(){
+  drawDom();
+});
+domCanvas.addEventListener('touchstart', function(e){
+  e.preventDefault();
+  drawDomCrosshair(e.touches[0].clientY);
+}, {passive:false});
+domCanvas.addEventListener('touchmove', function(e){
+  e.preventDefault();
+  drawDomCrosshair(e.touches[0].clientY);
+}, {passive:false});
+domCanvas.addEventListener('touchend', function(){
+  drawDom();
+}, {passive:true});
+
+// Call drawDom when DOM tab active — integrated into ui() below
+
+// ===== CHART =====
+const canvas=document.getElementById('chartCanvas');
+const ctx=canvas.getContext('2d');
+
+// ===== CHART CROSSHAIR =====
+var chartCrosshair = { active:false, x:-1, y:-1, mode:false };
+
+function toggleCrosshair(){
+  chartCrosshair.mode = !chartCrosshair.mode;
+  var btn = document.getElementById('btnCrosshair');
+  if(chartCrosshair.mode){
+    // ON — show crosshair at center immediately
+    var W = canvas.offsetWidth;
+    var H = 300;
+    chartCrosshair.active = true;
+    chartCrosshair.x = Math.floor(W / 2);
+    chartCrosshair.y = Math.floor(H / 2);
+    if(btn){
+      btn.textContent = '✛ ON';
+      btn.style.background = 'rgba(255,61,90,0.15)';
+      btn.style.borderColor = 'rgba(255,61,90,0.9)';
+      btn.style.color = 'rgba(255,61,90,1)';
+    }
+    canvas.style.cursor = 'crosshair';
+  } else {
+    // OFF — hide crosshair, restore pan/zoom
+    chartCrosshair.active = false;
+    chartCrosshair.x = -1;
+    chartCrosshair.y = -1;
+    if(btn){
+      btn.textContent = '✛ OFF';
+      btn.style.background = 'transparent';
+      btn.style.borderColor = 'rgba(255,61,90,0.5)';
+      btn.style.color = 'rgba(255,61,90,0.7)';
+    }
+    canvas.style.cursor = 'default';
+  }
+  drawChart();
+}
+
+
+// PC mouse crosshair on chart (hold click to show)
+canvas.addEventListener('mousedown', function(e){
+  if(chartCrosshair.mode){
+    var rect = canvas.getBoundingClientRect();
+    chartCrosshair.x = e.clientX - rect.left;
+    chartCrosshair.y = e.clientY - rect.top;
+    drawChart();
+    return;
+  }
+  panDrag.active = true;
+  panDrag.startX = e.clientX;
+  panDrag.startPan = S.panOffset;
+  canvas.style.cursor = 'grabbing';
+});
+canvas.addEventListener('mousemove', function(e){
+  if(chartCrosshair.mode){
+    var rect = canvas.getBoundingClientRect();
+    chartCrosshair.x = e.clientX - rect.left;
+    chartCrosshair.y = e.clientY - rect.top;
+    drawChart();
+    return;
+  }
+  if(!panDrag.active) return;
+  var all = S.candles;
+  if(!all.length) return;
+  var visibleCount = Math.max(5, Math.round(all.length / S.zoom));
+  var cw = Math.max(6, Math.min(20, Math.floor((canvas.offsetWidth - 52 - 10) / Math.max(visibleCount, 1)) - 3));
+  var gap = cw + 3;
+  var deltaPx = e.clientX - panDrag.startX;
+  var deltaCandles = Math.round(deltaPx / gap);
+  var maxPan = Math.max(0, all.length - visibleCount);
+  var minPan = -Math.floor(visibleCount / 2);
+  S.panOffset = Math.max(minPan, Math.min(panDrag.startPan + deltaCandles, maxPan));
+  drawChart();
+});
+canvas.addEventListener('mouseup', function(){
+  if(chartCrosshair.mode) return; // crosshair stays
+  panDrag.active = false; canvas.style.cursor = 'crosshair';
+});
+canvas.addEventListener('mouseleave', function(){
+  if(chartCrosshair.mode) return; // crosshair stays
+  panDrag.active = false; canvas.style.cursor = 'default';
+});
+
+
+// ===== PAN & ZOOM HELPERS =====
+function clampPan(){
+  var all = S.candles;
+  if(!all.length){ S.panOffset = 0; return; }
+  var visibleCount = Math.max(5, Math.round(all.length / S.zoom));
+  var maxPan = Math.max(0, all.length - visibleCount);
+  var minPan = -Math.floor(visibleCount / 2);
+  if(S.panOffset > maxPan) S.panOffset = maxPan;
+  if(S.panOffset < minPan) S.panOffset = minPan;
+}
+
+function applyZoom(newZoom){
+  S.zoom = Math.max(0.25, Math.min(4.0, newZoom));
+  clampPan();
+  drawChart();
+}
+
+function applyPan(deltaCandles){
+  var all = S.candles;
+  if(!all.length) return;
+  var visibleCount = Math.max(5, Math.round(all.length / S.zoom));
+  var maxPan = Math.max(0, all.length - visibleCount);
+  var minPan = -Math.floor(visibleCount / 2);
+  S.panOffset = Math.max(minPan, Math.min(S.panOffset + deltaCandles, maxPan));
+  drawChart();
+}
+
+// ===== MOUSE PAN =====
+var panDrag = { active:false, startX:0, startPan:0 };
+
+canvas.addEventListener('mousedown', function(e){
+  panDrag.active = true;
+  panDrag.startX = e.clientX;
+  panDrag.startPan = S.panOffset;
+  canvas.style.cursor = 'grabbing';
+});
+canvas.addEventListener('mousemove', function(e){
+  if(!panDrag.active) return;
+  var all = S.candles;
+  if(!all.length) return;
+  var visibleCount = Math.max(5, Math.round(all.length / S.zoom));
+  var cw = Math.max(6, Math.min(20, Math.floor((canvas.offsetWidth - 52 - 10) / Math.max(visibleCount, 1)) - 3));
+  var gap = cw + 3;
+  var deltaPx = e.clientX - panDrag.startX;
+  var deltaCandles = Math.round(deltaPx / gap);
+  var maxPan = Math.max(0, all.length - visibleCount);
+  var minPan = -Math.floor(visibleCount / 2);
+  S.panOffset = Math.max(minPan, Math.min(panDrag.startPan + deltaCandles, maxPan));
+  drawChart();
+});
+
+// ===== TOUCH PAN + PINCH ZOOM =====
+var touchStartX = 0, touchStartPan = 0;
+var pinchStartDist = 0, pinchStartZoom = 1;
+var isPinching = false;
+
+function getTouchDist(e){
+  var dx = e.touches[0].clientX - e.touches[1].clientX;
+  var dy = e.touches[0].clientY - e.touches[1].clientY;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+
+canvas.addEventListener('touchstart', function(e){
+  if(e.touches.length >= 2){ isPinching = true; pinchStartDist = getTouchDist(e); pinchStartZoom = S.zoom; e.preventDefault(); return; }
+  isPinching = false;
+  if(chartCrosshair.mode){
+    var rect = canvas.getBoundingClientRect();
+    chartCrosshair.active = true;
+    chartCrosshair.x = e.touches[0].clientX - rect.left;
+    chartCrosshair.y = e.touches[0].clientY - rect.top;
+    drawChart();
+    e.preventDefault();
+    return;
+  }
+  touchStartX   = e.touches[0].clientX;
+  touchStartPan = S.panOffset;
+}, {passive:false});
+
+canvas.addEventListener('touchmove', function(e){
+  if(isPinching && e.touches.length >= 2){ e.preventDefault(); var dist=getTouchDist(e); applyZoom(pinchStartZoom*(dist/(pinchStartDist||1))); return; }
+  if(isPinching) return;
+  if(chartCrosshair.mode){
+    var rect = canvas.getBoundingClientRect();
+    chartCrosshair.x = e.touches[0].clientX - rect.left;
+    chartCrosshair.y = e.touches[0].clientY - rect.top;
+    drawChart();
+    e.preventDefault();
+    return;
+  }
+  var all = S.candles;
+  if(!all.length) return;
+  var visibleCount = Math.max(5, Math.round(all.length / S.zoom));
+  var cw = Math.max(6, Math.min(20, Math.floor((canvas.offsetWidth - 52 - 10) / Math.max(visibleCount, 1)) - 3));
+  var gap = cw + 3;
+  var deltaPx = e.touches[0].clientX - touchStartX;
+  var deltaCandles = Math.round(deltaPx / gap);
+  var maxPan = Math.max(0, all.length - visibleCount);
+  var minPan = -Math.floor(visibleCount / 2);
+  S.panOffset = Math.max(minPan, Math.min(touchStartPan + deltaCandles, maxPan));
+  drawChart();
+}, {passive:false});
+
+canvas.addEventListener('touchend', function(e){
+  if(e.touches.length < 2) isPinching = false;
+  // crosshair stays at last position when finger lifted
+}, {passive:true});
+
+// ===== SCROLL WHEEL ZOOM =====
+canvas.addEventListener('wheel', function(e){
+  e.preventDefault();
+  applyZoom(S.zoom + (e.deltaY < 0 ? 0.25 : -0.25));
+}, {passive:false});
+
+
+
+function resizeChart(){
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=canvas.offsetWidth*dpr; canvas.height=300*dpr;
+  ctx.scale(dpr,dpr); drawChart();
+}
+
+function drawChart(){
+  const W=canvas.offsetWidth, H=300;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#030810'; ctx.fillRect(0,0,W,H);
+  const cH=H-48, vH=36, vY=cH+6;
+
+  const all=[...S.candles];
+  if(S.activeCandle && S.activeCandle.vol>0) all.push({...S.activeCandle, c:S.price, h:Math.max(S.activeCandle.h,S.price), l:Math.min(S.activeCandle.l,S.price)});
+
+  if(all.length===0){
+    ctx.fillStyle='#3a6070'; ctx.font='11px Share Tech Mono'; ctx.textAlign='center';
+    ctx.fillText('PLACE ORDERS TO SEE CHART',W/2,H/2); return;
+  }
+
+  // Zoom X + Pan — slot-based
+  const visibleCount = Math.max(5, Math.round(all.length / S.zoom));
+  const maxPan = Math.max(0, all.length - visibleCount);
+  const minPan = -Math.floor(visibleCount / 2);
+  S.panOffset = Math.max(minPan, Math.min(S.panOffset, maxPan));
+  const baseIdx = all.length - visibleCount - S.panOffset;
+
+  // Build visible array for price range (only valid candles)
+  const visible = [];
+  for(let _i=0; _i<visibleCount; _i++){
+    const _ci = baseIdx + _i;
+    if(_ci >= 0 && _ci < all.length) visible.push(all[_ci]);
+  }
+  if(visible.length === 0){
+    ctx.fillStyle='#3a6070'; ctx.font='11px Share Tech Mono'; ctx.textAlign='center';
+    ctx.fillText('PLACE ORDERS TO SEE CHART',W/2,H/2); return;
+  }
+
+  let minP=Math.min(...visible.map(c=>c.l), S.price);
+  let maxP=Math.max(...visible.map(c=>c.h), S.price);
+  const allPx=[...Object.keys(S.limitBuys).map(Number),...Object.keys(S.limitSells).map(Number)];
+  if(allPx.length){ minP=Math.min(minP,...allPx); maxP=Math.max(maxP,...allPx); }
+  const pad=(maxP-minP)*0.15||0.3; minP-=pad; maxP+=pad;
+  const pR=maxP-minP;
+  const maxVol=Math.max(...visible.map(c=>c.vol),1);
+  const rp=52;
+  const cw=Math.max(6,Math.min(20,Math.floor((W-rp-10)/Math.max(visibleCount,1))-3));
+  const gap=cw+3;
+  const sx=W-rp-visibleCount*gap;
+  function py(p){return cH-((p-minP)/pR)*cH;}
+
+  // Grid lines
+  for(let i=0;i<=5;i++){
+    const y=(cH/5)*i;
+    ctx.strokeStyle='rgba(13,32,48,0.9)'; ctx.lineWidth=0.5;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W-rp,y); ctx.stroke();
+    const pr=maxP-(pR/5)*i;
+    ctx.fillStyle='#3a6070'; ctx.font='9px Share Tech Mono'; ctx.textAlign='left';
+    ctx.fillText(pr.toFixed(2),W-rp+3,y+4);
+  }
+
+  // HVN lines
+  if(S.simHighVolNodes && S.simHighVolNodes.length > 0){
+    S.simHighVolNodes.forEach((node, idx) => {
+      const y = py(node.price);
+      if(y < 0 || y > cH) return;
+      const nodeW = (W - rp) * 0.35;
+      const nc = node.side==='sell'?'rgba(255,61,90,'+(0.7-idx*0.1)+')':'rgba(0,230,118,'+(0.7-idx*0.1)+')';
+      ctx.setLineDash([3,5]); ctx.strokeStyle=nc; ctx.lineWidth=1.2;
+      ctx.beginPath(); ctx.moveTo(W-rp-nodeW,y); ctx.lineTo(W-rp,y); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle=nc; ctx.font='bold 7px Share Tech Mono'; ctx.textAlign='right';
+      ctx.fillText('HVN '+node.price.toFixed(2)+' ('+node.vol.toFixed(1)+')',W-rp-nodeW-2,y-2);
+    });
+  }
+
+  // Draw candles slot-based
+  for(let slot=0; slot<visibleCount; slot++){
+    const ci = baseIdx + slot;
+    if(ci < 0 || ci >= all.length) continue;
+    const c = all[ci];
+    const x = sx + slot*gap;
+    if(x < -cw || x > W) continue;
+    const isUp=c.c>=c.o;
+    const col=isUp?'#00e676':'#ff3d5a';
+    const bTop=py(Math.max(c.o,c.c));
+    const bBot=py(Math.min(c.o,c.c));
+    const bH=Math.max(2,bBot-bTop);
+    const isCurrent=(ci===all.length-1);
+    ctx.strokeStyle=col; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x+cw/2,py(c.h)); ctx.lineTo(x+cw/2,py(c.l)); ctx.stroke();
+    const alpha=isCurrent?0.95:0.75;
+    ctx.fillStyle=isUp?'rgba(0,230,118,'+alpha+')':'rgba(255,61,90,'+alpha+')';
+    ctx.fillRect(x,bTop,cw,bH);
+    if(isCurrent){ ctx.strokeStyle=col; ctx.lineWidth=1.5; ctx.strokeRect(x,bTop,cw,bH); }
+    const vbH=(c.vol/maxVol)*vH;
+    ctx.fillStyle=isUp?'rgba(0,230,118,0.3)':'rgba(255,61,90,0.3)';
+    ctx.fillRect(x,vY+vH-vbH,cw,vbH);
+  }
+
+  // ===== MY ORDERS LINES =====
+  S.myOrders.forEach(o => {
+    const isBuy = o.side === 'buy';
+    const typeLabel = o.type ? o.type.toUpperCase() : 'MARKET';
+    const sideLabel = isBuy ? 'BUY' : 'SELL';
+    const entryLabel = o.triggered
+      ? `● ${sideLabel} ${typeLabel} — TRIGGERED @ ${o.entry.toFixed(2)}`
+      : `● ${sideLabel} ${typeLabel} @ ${o.entry.toFixed(2)}`;
+    const entryColor = o.triggered
+      ? (isBuy ? 'rgba(0,230,118,0.9)' : 'rgba(255,61,90,0.9)')
+      : 'rgba(179,136,255,0.9)';
+    const lineColor = o.triggered
+      ? (isBuy ? 'rgba(0,230,118,0.7)' : 'rgba(255,61,90,0.7)')
+      : 'rgba(179,136,255,0.7)';
+
+    // Entry line
+    const ey = py(o.entry);
+    ctx.setLineDash([6,4]); ctx.strokeStyle=lineColor; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(0,ey); ctx.lineTo(W-rp,ey); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=entryColor;
+    ctx.font='bold 8px Share Tech Mono'; ctx.textAlign='left';
+    ctx.fillText(entryLabel, 4, ey-3);
+
+    // TP line — green dashed
+    if(o.tp){
+      const ty = py(o.tp);
+      ctx.setLineDash([4,4]); ctx.strokeStyle='rgba(0,230,118,0.7)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(0,ty); ctx.lineTo(W-rp,ty); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='rgba(0,230,118,0.85)';
+      ctx.font='bold 8px Share Tech Mono'; ctx.textAlign='left';
+      ctx.fillText(`◆ TP ${o.tp.toFixed(2)}`, 4, ty-3);
+    }
+
+    // SL line — red dashed
+    if(o.sl){
+      const sy = py(o.sl);
+      ctx.setLineDash([4,4]); ctx.strokeStyle='rgba(255,61,90,0.7)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(0,sy); ctx.lineTo(W-rp,sy); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='rgba(255,61,90,0.85)';
+      ctx.font='bold 8px Share Tech Mono'; ctx.textAlign='left';
+      ctx.fillText(`◆ SL ${o.sl.toFixed(2)}`, 4, sy+10);
+    }
+  });
+
+  // Current price line
+  const cy=py(S.price);
+  ctx.setLineDash([4,4]); ctx.strokeStyle='#ffd600'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,cy); ctx.lineTo(W-rp,cy); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle='#ffd600'; ctx.fillRect(W-rp,cy-9,rp-1,18);
+  ctx.fillStyle='#000'; ctx.font='bold 9px Share Tech Mono'; ctx.textAlign='center';
+  ctx.fillText(S.price.toFixed(2),W-rp/2-1,cy+4);
+
+  // Vol label
+  ctx.fillStyle='#3a6070'; ctx.font='8px Share Tech Mono'; ctx.textAlign='left';
+  ctx.fillText('VOL',3,vY+10);
+
+  // ===== CHART CROSSHAIR =====
+  if(chartCrosshair.active && chartCrosshair.x >= 0 && chartCrosshair.y >= 0){
+    var chX = chartCrosshair.x, chY = chartCrosshair.y;
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4,6]);
+    ctx.beginPath(); ctx.moveTo(0,chY); ctx.lineTo(W-rp,chY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(chX,0); ctx.lineTo(chX,cH); ctx.stroke();
+    ctx.setLineDash([]);
+    if(chY >= 0 && chY <= cH && pR > 0){
+      var prCH = maxP - (chY / cH) * pR;
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.fillRect(W-rp, chY-9, rp-2, 15);
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 8px Share Tech Mono';
+      ctx.textAlign = 'left';
+      ctx.fillText(prCH.toFixed(2), W-rp+2, chY+4);
+    }
+  }
+}
+
+// ===== ORDER BOOK TABLE =====
+function buildOB(){
+  const asks=getSortedAsks().slice(0,10);
+  const bids=getSortedBids().slice(0,10);
+  const allVols=[...asks.map(a=>a.vol),...bids.map(b=>b.vol)];
+  const maxVol=Math.max(...allVols,0.1);
+
+  // Asks: highest price on top, best ask near center
+  const asksDesc=[...asks].reverse();
+  let askCum=asks.reduce((a,v)=>a+v.vol,0);
+  let askHTML='';
+  asksDesc.forEach(a=>{
+    const pct=Math.min(100,(a.vol/maxVol)*100);
+    askHTML+=`<div class="ob-row sell-row">
+      <span>SELL<\/span>
+      <span>${a.price.toFixed(2)}<\/span>
+      <span>${a.vol.toFixed(1)}<\/span>
+      <span>${askCum.toFixed(1)}<\/span>
+      <div class="ob-depth" style="width:${pct}%"><\/div>
+    <\/div>`;
+    askCum-=a.vol;
+  });
+  for(let i=asksDesc.length;i<10;i++){
+    askHTML+=`<div class="ob-empty"><span>—<\/span><span>—<\/span><span>—<\/span><span>—<\/span><\/div>`;
+  }
+
+  let bidCum=0;
+  let bidHTML='';
+  bids.forEach(b=>{
+    bidCum+=b.vol;
+    const pct=Math.min(100,(b.vol/maxVol)*100);
+    bidHTML+=`<div class="ob-row buy-row">
+      <span>BUY<\/span>
+      <span>${b.price.toFixed(2)}<\/span>
+      <span>${b.vol.toFixed(1)}<\/span>
+      <span>${bidCum.toFixed(1)}<\/span>
+      <div class="ob-depth" style="width:${pct}%"><\/div>
+    <\/div>`;
+  });
+  for(let i=bids.length;i<10;i++){
+    bidHTML+=`<div class="ob-empty"><span>—<\/span><span>—<\/span><span>—<\/span><span>—<\/span><\/div>`;
+  }
+
+  document.getElementById('askSection').innerHTML=askHTML;
+  document.getElementById('bidSection').innerHTML=bidHTML;
+
+  const bestBid=bids.length?bids[0].price:null;
+  const bestAsk=asks.length?asks[0].price:null;
+  document.getElementById('obPrice').textContent=S.price.toFixed(2);
+  document.getElementById('obBid').textContent=bestBid?`BID ${bestBid.toFixed(2)}`:'BID —';
+  document.getElementById('obAsk').textContent=bestAsk?`ASK ${bestAsk.toFixed(2)}`:'ASK —';
+  document.getElementById('obSpread').textContent=(bestBid&&bestAsk)?`SPD ${(bestAsk-bestBid).toFixed(2)}`:'SPD —';
+}
+
+// ===== MAIN UI =====
+function ui(){
+  document.getElementById('sPrice').textContent=S.price.toFixed(2);
+  const bids=getSortedBids(), asks=getSortedAsks();
+  const bb=bids.length?bids[0].price:null, ba=asks.length?asks[0].price:null;
+  document.getElementById('sBid').textContent=bb?bb.toFixed(2):'—';
+  document.getElementById('sAsk').textContent=ba?ba.toFixed(2):'—';
+  document.getElementById('sSpread').textContent=(bb&&ba)?(ba-bb).toFixed(2):'—';
+  document.getElementById('sBuyVol').textContent=S.buyVol.toFixed(1);
+  document.getElementById('sSellVol').textContent=S.sellVol.toFixed(1);
+  document.getElementById('sTrades').textContent=S.trades;
+
+  const dirEl=document.getElementById('sDir');
+  if(S.price>S.prevPrice){dirEl.textContent='↑UP';dirEl.style.color='var(--buy)';}
+  else if(S.price<S.prevPrice){dirEl.textContent='↓DOWN';dirEl.style.color='var(--sell)';}
+  else{dirEl.textContent='FLAT';dirEl.style.color='var(--dim)';}
+
+  const tb=Object.values(S.limitBuys).reduce((a,v)=>a+v.vol,0)+S.buyQ.reduce((a,o)=>a+o.rem,0);
+  const ta=Object.values(S.limitSells).reduce((a,v)=>a+v.vol,0)+S.sellQ.reduce((a,o)=>a+o.rem,0);
+  const tot=tb+ta;
+  const fill=document.getElementById('ibarFill');
+  if(tot>0){const p=(tb/tot)*100;fill.style.width=p+'%';fill.style.background=p>60?'var(--buy)':p<40?'var(--sell)':'var(--accent)';}
+  else{fill.style.width='50%';fill.style.background='var(--dim)';}
+
+  // MY ORDERS LIST
+  const mol = document.getElementById('myOrderList');
+  if(S.myOrders.length === 0){
+    mol.innerHTML = '<div class="empty">NO MY ORDERS<\/div>';
+  } else {
+    let moHTML = '';
+    S.myOrders.forEach(o => {
+      const typeLabel = o.type ? o.type.toUpperCase() : 'MARKET';
+      const sideColor = o.side==='buy' ? 'var(--buy)' : 'var(--sell)';
+      const statusBadge = o.triggered
+        ? `<span style="background:rgba(0,230,118,0.15);color:var(--buy);padding:1px 6px;border-radius:2px;font-size:0.6rem;">TRIGGERED<\/span>`
+        : `<span style="background:rgba(179,136,255,0.15);color:rgba(179,136,255,0.9);padding:1px 6px;border-radius:2px;font-size:0.6rem;">PENDING<\/span>`;
+      const tpBadge = o.tp ? `<span style="color:var(--buy);font-size:0.65rem;">TP:${o.tp.toFixed(2)}<\/span>` : '';
+      const slBadge = o.sl ? `<span style="color:var(--sell);font-size:0.65rem;">SL:${o.sl.toFixed(2)}<\/span>` : '';
+      moHTML += `<div class="porder ${o.side}-o" style="border-left-color:rgba(179,136,255,0.6);">
+        ${statusBadge}
+        <span style="color:${sideColor}">${o.side.toUpperCase()} ${typeLabel}<\/span>
+        <span>@ ${o.entry.toFixed(2)}<\/span>
+        <span style="display:flex;gap:6px;">${tpBadge}${slBadge}<\/span>
+        <button class="xbtn" onclick="cancelMyOrder(${o.id})">✕<\/button>
+      <\/div>`;
+    });
+    mol.innerHTML = moHTML;
+  }
+
+  buildOB();
+
+  const pl=document.getElementById('pendingList');
+  if(S.pending.length===0){pl.innerHTML='<div class="empty">NO PENDING ORDERS<\/div>';}
+  else{
+    let pHTML='';
+    S.pending.forEach(o=>{
+      const tagColor = o.tag==='TP' ? 'rgba(0,230,118,0.2)' : 'rgba(255,61,90,0.2)';
+      const tagText  = o.tag==='TP' ? 'var(--buy)' : 'var(--sell)';
+      const tagHTML  = o.tag ? '<span style="background:'+tagColor+';padding:1px 5px;border-radius:2px;font-size:0.65rem;color:'+tagText+'">'+o.tag+'<\/span>' : '';
+      const sideColor = o.side==='buy' ? 'var(--buy)' : 'var(--sell)';
+      pHTML += '<div class="porder '+o.side+'-o">'
+             + tagHTML
+             + '<span style="color:'+sideColor+'">'+o.side.toUpperCase()+' '+o.type.toUpperCase()+'<\/span>'
+             + '<span>@ '+o.price.toFixed(2)+'<\/span>'
+             + '<span>'+o.vol+' lot<\/span>'
+             + '<button class="xbtn" onclick="cancelOrder('+o.id+')">✕<\/button>'
+             + '<\/div>';
+    });
+    pl.innerHTML=pHTML;
+  }
+
+  drawChart();
+  updateHVN();
+  var domPanel = document.getElementById('mpanel-dom');
+  if(domPanel && domPanel.offsetParent !== null) drawDom();
+}
+
+// ===== SIMULATE =====
+function runSimulate() {
+  const startPrice = parseFloat(document.getElementById('simStartPrice').value) || 10.00;
+  const candleCount = parseInt(document.getElementById('simCandleCount').value) || 15;
+
+  // Full reset with custom start price
+  S={price:startPrice, prevPrice:startPrice, buyQ:[],sellQ:[],pending:[],limitBuys:{},limitSells:{},trades:0,buyVol:0,sellVol:0,uid:1,candles:[],activeCandle:null,myOrders:[],simHighVolNodes:[],zoom:1.0,panOffset:0,executedVol:{},TICK:parseFloat((startPrice*0.005).toFixed(2))||0.05};
+  seedBook();
+  document.getElementById('tlog').innerHTML='<div class="tentry info">[ SIMULATE ] Generating '+candleCount+' candles @ start price '+startPrice.toFixed(2)+'...<\/div>';
+  document.getElementById('simStatus').style.display='none';
+
+  const trendTypes = ['up','down','sideways'];
+  const trend = trendTypes[Math.floor(Math.random()*3)];
+  log('[ SIMULATE ] Trend: '+trend.toUpperCase(),'info');
+
+  for(let i=0; i<candleCount; i++) {
+    simulateOneCandle(i, trend);
+  }
+
+  document.getElementById('simStatus').style.display='block';
+  document.getElementById('simStatus').textContent =
+    '⚡ SIMULATE '+candleCount+' CANDLES COMPLETE — Price: '+S.price.toFixed(2)+' — PRESS NEW CANDLE TO CONTINUE (Candle #'+(candleCount+1)+')';
+  log('[ SIMULATE ] '+candleCount+' candles complete — Price: '+S.price.toFixed(2),'matched');
+
+  updateCandleStatus();
+  // Auto-zoom: show ~30 candles, pan works immediately
+  if(S.candles.length > 30){
+    S.zoom = S.candles.length / 30;
+  } else {
+    S.zoom = 1.0;
+  }
+  S.panOffset = 0;
+  clampPan();
+  ui();
+}
+
+function simulateOneCandle(index, trend) {
+  // Start new candle
+  S.activeCandle = { o:S.price, h:S.price, l:S.price, c:S.price, vol:0, bv:0, sv:0 };
+
+  // Determine candle bias based on trend
+  let buyBias, sellBias;
+  if(trend==='up') {
+    buyBias  = 0.60 + Math.random()*0.15; // 60-75% chance buy dominates
+    sellBias = 1 - buyBias;
+  } else if(trend==='down') {
+    sellBias = 0.60 + Math.random()*0.15;
+    buyBias  = 1 - sellBias;
+  } else {
+    buyBias  = 0.40 + Math.random()*0.20; // 40-60% random
+    sellBias = 1 - buyBias;
+  }
+
+  // Generate 2-5 random orders per candle
+  const numOrders = 2 + Math.floor(Math.random()*4);
+  for(let j=0; j<numOrders; j++) {
+    const isBuy = Math.random() < buyBias;
+    // Mixed volume: small (1-5) or large (6-20)
+    const isLarge = Math.random() < 0.3;
+    const vol = isLarge
+      ? parseFloat((6 + Math.random()*14).toFixed(1))
+      : parseFloat((1 + Math.random()*4).toFixed(1));
+
+    if(isBuy) {
+      S.buyQ.push({id:S.uid++, vol, rem:vol});
+      S.buyVol += vol;
+      runMatch();
+    } else {
+      S.sellQ.push({id:S.uid++, vol, rem:vol});
+      S.sellVol += vol;
+      runMatch();
+    }
+
+    // Random TP and SL for some orders (50% chance)
+    if(Math.random() < 0.5) {
+      const tpDist = parseFloat((S.TICK * (2 + Math.floor(Math.random()*6))).toFixed(2));
+      const slDist = parseFloat((S.TICK * (1 + Math.floor(Math.random()*4))).toFixed(2));
+      if(isBuy) {
+        const tp = parseFloat((S.price + tpDist).toFixed(2));
+        const sl = parseFloat((S.price - slDist).toFixed(2));
+        S.pending.push({id:S.uid++, side:'sell', type:'limit', price:tp, vol, rem:vol, tag:'TP'});
+        addBook('sell', tp, vol);
+        S.pending.push({id:S.uid++, side:'sell', type:'stop', price:sl, vol, rem:vol, tag:'SL'});
+      } else {
+        const tp = parseFloat((S.price - tpDist).toFixed(2));
+        const sl = parseFloat((S.price + slDist).toFixed(2));
+        S.pending.push({id:S.uid++, side:'buy', type:'limit', price:tp, vol, rem:vol, tag:'TP'});
+        addBook('buy', tp, vol);
+        S.pending.push({id:S.uid++, side:'buy', type:'stop', price:sl, vol, rem:vol, tag:'SL'});
+      }
+      checkTrig();
+    }
+  }
+
+  // Close candle → push to history
+  if(S.activeCandle) {
+    S.activeCandle.c = S.price;
+    S.activeCandle.h = Math.max(S.activeCandle.h, S.price);
+    S.activeCandle.l = Math.min(S.activeCandle.l, S.price);
+    if(S.activeCandle.vol > 0) {
+      S.candles.push({...S.activeCandle});
+    }
+    S.activeCandle = null;
+  }
+
+  replenishBook();
+}
+
+function clearMyOrders(){
+  S.myOrders = [];
+  log('✕ MY LINES CLEARED','pending');
+  ui();
+}
+
+function cancelMyOrder(id){
+  const mo = S.myOrders.find(o => o.id === id);
+  if(!mo) return;
+
+  // Cancel entry pending order (limit/stop) if not yet triggered
+  if(mo.pendingId !== null && !mo.triggered){
+    const idx = S.pending.findIndex(p => p.id === mo.pendingId);
+    if(idx !== -1){
+      const p = S.pending[idx];
+      remBook(p.side, p.price, p.vol);
+      S.pending.splice(idx, 1);
+      log(`✕ MY ORDER ENTRY CANCELLED — ${p.side.toUpperCase()} ${p.type.toUpperCase()} @ ${p.price.toFixed(2)}`,'pending');
+    }
+  }
+
+  // Cancel associated TP pending order
+  if(mo.tp){
+    const tpIdx = S.pending.findIndex(p => p.tag==='TP' && Math.abs(p.price - mo.tp) < 0.001);
+    if(tpIdx !== -1){
+      const p = S.pending[tpIdx];
+      remBook(p.side, p.price, p.vol);
+      S.pending.splice(tpIdx, 1);
+      log(`✕ MY ORDER TP CANCELLED @ ${p.price.toFixed(2)}`,'pending');
+    }
+  }
+
+  // Cancel associated SL pending order
+  if(mo.sl){
+    const slIdx = S.pending.findIndex(p => p.tag==='SL' && Math.abs(p.price - mo.sl) < 0.001);
+    if(slIdx !== -1){
+      const p = S.pending[slIdx];
+      remBook(p.side, p.price, p.vol);
+      S.pending.splice(slIdx, 1);
+      log(`✕ MY ORDER SL CANCELLED @ ${p.price.toFixed(2)}`,'pending');
+    }
+  }
+
+  S.myOrders = S.myOrders.filter(o => o.id !== id);
+  ui();
+}
+
+function reset(){
+  const startPrice = parseFloat(document.getElementById('simStartPrice').value) || 10.00;
+  S={price:startPrice,prevPrice:startPrice,buyQ:[],sellQ:[],pending:[],limitBuys:{},limitSells:{},trades:0,buyVol:0,sellVol:0,uid:1,candles:[],activeCandle:null,myOrders:[],simHighVolNodes:[],zoom:1.0,panOffset:0,executedVol:{},TICK:parseFloat((startPrice*0.005).toFixed(2))||0.05};
+  seedBook();
+  document.getElementById('tlog').innerHTML='<div class="tentry info">[ SYSTEM ] Reset — Start Price: '+startPrice.toFixed(2)+'<\/div>';
+  document.getElementById('simStatus').style.display='none';
+  updateCandleStatus();
+  ui();
+}
+
+window.addEventListener('resize',resizeChart);
+resizeChart();
+ui();
+function openRef(lang){
+  lang = lang || 'th';
+  document.getElementById('refOverlay').classList.add('open');
+  switchRefLang(lang);
+}
+
+function switchMobTab(tab){
+  ['chart','ob','dom'].forEach(function(t){
+    var btn = document.getElementById('mtab-'+t);
+    var panel = document.getElementById('mpanel-'+t);
+    if(btn) btn.classList.toggle('active', t===tab);
+    if(panel) panel.classList.toggle('active', t===tab);
+  });
+  if(tab==='chart'){ resizeChart(); }
+  if(tab==='dom'){
+    if(domCanvas){
+      domCanvas.style.width = '100%';
+      domCanvas.style.height = '400px';
+    }
+    resizeDom();
+    drawDom();
+    // Move forms into DOM placeholder on mobile
+    var ph = document.getElementById('forms-dom-placeholder');
+    var fr = document.getElementById('main-forms-row');
+    if(ph && fr && window.innerWidth <= 680){
+      ph.appendChild(fr);
+    }
+  } else {
+    // Return forms to original position when leaving DOM tab
+    var fr = document.getElementById('main-forms-row');
+    var orig = document.getElementById('forms-original-slot');
+    if(fr && orig && window.innerWidth <= 680){
+      orig.appendChild(fr);
+    }
+  }
+}
+
+function toggleAcc(bodyId, arrowId){
+  const body  = document.getElementById(bodyId);
+  const arrow = document.getElementById(arrowId);
+  if(!body) return;
+  const isOpen = body.style.maxHeight && body.style.maxHeight !== '0px';
+  body.style.maxHeight  = isOpen ? '0px' : '400px';
+  if(arrow) arrow.classList.toggle('open', !isOpen);
+}
+function closeRef(){
+  document.getElementById('refOverlay').classList.remove('open');
+}
+function switchRefLang(lang){
+  document.querySelectorAll('.ref-section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.ref-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('ref-'+lang).classList.add('active');
+  document.getElementById('rtab-'+lang).classList.add('active');
+}
+
+window.addEventListener('resize', resizeChart);
+resizeChart();
+resizeDom();
+ui();
+</script>
+
+<!-- ===== REFERENCE MODAL ===== -->
+<div class="ref-overlay" id="refOverlay" onclick="if(event.target===this)closeRef()">
+<div class="ref-modal">
+  <div class="ref-header">
+    <span class="ref-title">📖 ORDER FLOW REFERENCE</span>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+      <div class="ref-tabs">
+        <button class="ref-tab active" id="rtab-th" onclick="switchRefLang('th')">ภาษาไทย</button>
+        <button class="ref-tab" id="rtab-en" onclick="switchRefLang('en')">ENGLISH</button>
+        <button class="ref-tab" id="rtab-terms" onclick="switchRefLang('terms')">TERMS</button>
+      </div>
+      <button onclick="closeRef()" style="background:rgba(0,184,217,0.08);border:1px solid var(--accent);border-radius:3px;color:var(--accent);font-family:'Share Tech Mono',monospace;font-size:0.75rem;letter-spacing:1px;padding:5px 12px;cursor:pointer;white-space:nowrap;">← BACK</button>
+    </div>
+  </div>
+  <div class="ref-body">
+
+  <!-- ===== THAI ===== -->
+  <div class="ref-section active" id="ref-th" style="font-family:'Sarabun',sans-serif">
+
+    <div style="background:rgba(255,152,0,0.07);border:1px solid rgba(255,152,0,0.3);border-radius:4px;padding:10px 14px;margin-bottom:16px;">
+      <span style="color:var(--match);font-weight:700;letter-spacing:1px;">⚠ Simplified Educational Model</span>
+      <p style="margin-top:6px;">tool นี้เป็น Simulation แบบ Simplified เพื่อให้เข้าใจหลักการพื้นฐานของ Order Flow — ไม่ใช่การจำลอง Exchange จริงแบบครบถ้วน ในตลาดจริงมีความซับซ้อนเพิ่มเติม เช่น Price-Time Priority, Iceberg Order, Hidden Liquidity และ Latency ซึ่งไม่ได้รวมอยู่ใน Simulation นี้ แนวคิดที่แสดงในที่นี้สะท้อนหลักการพื้นฐานที่สำคัญเพื่อการเรียนรู้ครับ</p>
+    </div>
+
+    <h1>1. Order Flow</h1>
+    <p>การเคลื่อนที่ของราคาเกิดจาก <span class="g">Market Order</span> ที่เข้ามาดูดซับ <span class="go">Limit Order</span> ใน Order Book มิใช่เกิดจากสัดส่วนเชิงปริมาณระหว่างผู้ซื้อและผู้ขาย หากแต่เป็นผลโดยตรงของ <strong>ปริมาณซื้อขาย (Volume)</strong> ที่ถูก Match กัน</p>
+    <ul>
+      <li><span class="g">Buy Market Order</span> ดูดซับ Sell Limit → ราคาปรับตัวสูงขึ้น</li>
+      <li><span class="r">Sell Market Order</span> ดูดซับ Buy Limit → ราคาปรับตัวลดลง</li>
+      <li>ฝั่งที่มี Volume มากกว่า → ราคาเคลื่อนที่ไปในทิศทางนั้น</li>
+    </ul>
+    <hr>
+
+    <h1>2. ประเภทของ Order</h1>
+    <h2>2.1 Market Order</h2>
+    <p>คำสั่งที่ถูก Execute ทันทีที่ราคาตลาด ณ ขณะนั้น ไม่มีการรอคิวใน Order Book มีผลต่อราคาในทันที และอาจก่อให้เกิด Slippage เมื่อขนาดคำสั่งมีปริมาณสูง</p>
+    <h2>2.2 Limit Order</h2>
+    <p>คำสั่งที่ถูกวางไว้ที่ราคาที่กำหนด รอคิวอยู่ใน Order Book จนกว่าราคาตลาดจะเคลื่อนมาถึงระดับดังกล่าว ไม่มีความเสี่ยง Slippage เนื่องจากระบุราคา Execute ไว้ล่วงหน้า</p>
+    <ul>
+      <li><span class="g">Buy Limit</span> — วางต่ำกว่าราคาปัจจุบัน รอ Execute ที่ระดับราคาที่ต้องการ</li>
+      <li><span class="r">Sell Limit</span> — วางสูงกว่าราคาปัจจุบัน รอ Execute ที่ระดับราคาที่ต้องการ</li>
+    </ul>
+    <h2>2.3 Stop Order</h2>
+    <p>คำสั่งที่จะถูกแปลงสภาพเป็น Market Order ทันทีเมื่อราคาตลาดเคลื่อนมาถึง Stop Price ส่งผลให้ราคาเคลื่อนที่ต่อในทิศทางเดิม</p>
+    <ul>
+      <li><span class="g">Buy Stop</span> — วางสูงกว่าราคาปัจจุบัน Trigger เมื่อราคาขึ้นถึงระดับนั้น</li>
+      <li><span class="r">Sell Stop</span> — วางต่ำกว่าราคาปัจจุบัน Trigger เมื่อราคาลงถึงระดับนั้น</li>
+    </ul>
+    <table>
+      <thead><tr><th>ประเภท Order</th><th>อยู่ใน Book?</th><th>Slippage?</th><th>เมื่อ Trigger</th></tr></thead>
+      <tbody>
+        <tr><td>Market Order</td><td>ไม่อยู่</td><td>เป็นไปได้</td><td>Execute ทันที</td></tr>
+        <tr><td>Limit Order</td><td>อยู่</td><td>ไม่มี</td><td>Execute ที่ราคาที่กำหนด</td></tr>
+        <tr><td>Stop Order</td><td>ไม่อยู่ (Broker)</td><td>เป็นไปได้</td><td>แปลงเป็น Market Order</td></tr>
+      </tbody>
+    </table>
+    <hr>
+
+    <h1>3. Order Book</h1>
+    <p>ชุดข้อมูลที่แสดง Limit Orders ทั้งหมดที่ยังคงรอ Execute อยู่ แบ่งออกเป็น <span class="cy">Bid (ฝั่งซื้อ)</span> และ <span class="cy">Ask (ฝั่งขาย)</span></p>
+    <ul>
+      <li><span class="go">Best Bid</span> — ราคาสูงสุดที่ผู้ซื้อเสนอในขณะนั้น</li>
+      <li><span class="go">Best Ask</span> — ราคาต่ำสุดที่ผู้ขายเสนอในขณะนั้น</li>
+      <li><span class="go">Spread</span> — ส่วนต่างระหว่าง Best Ask และ Best Bid</li>
+      <li><span class="go">Depth</span> — ปริมาณ Volume ที่สะสมอยู่ในแต่ละระดับราคา</li>
+    </ul>
+    <p class="note">หมายเหตุ: Stop Orders ไม่ปรากฏใน Order Book สาธารณะ โดยจะถูกเก็บรักษาไว้ที่ Broker Server เท่านั้น</p>
+    <hr>
+
+    <h1>4. Take Profit (TP) และ Stop Loss (SL)</h1>
+    <h2>4.1 Take Profit (TP) — Limit Order</h2>
+    <p>TP ทำงานในลักษณะของ Limit Order ที่วางรออยู่ในทิศทางที่ราคากำลังเคลื่อนที่ไป เมื่อราคาถึงระดับ TP จะ Execute แบบ Limit ไม่มี Slippage ราคาอาจชะลอตัวหรือพลิกกลับ</p>
+    <ul>
+      <li><strong>Buy Position TP</strong> = Sell Limit เหนือราคาปัจจุบัน → ราคาอาจชะลอตัวหรือพลิกกลับ</li>
+      <li><strong>Sell Position TP</strong> = Buy Limit ต่ำกว่าราคาปัจจุบัน → ราคาอาจชะลอตัวหรือพลิกกลับ</li>
+    </ul>
+    <h2>4.2 Stop Loss (SL) — Stop Order</h2>
+    <p>SL ทำงานในลักษณะของ Stop Order เมื่อราคาถึงระดับ SL จะถูกแปลงเป็น Market Order ทันที อาจเกิด Slippage และราคาจะเคลื่อนต่อในทิศทางเดิม</p>
+    <ul>
+      <li><strong>Buy Position SL</strong> = Sell Stop ต่ำกว่าราคา → Trigger Sell Market ราคาเคลื่อนลงต่อ</li>
+      <li><strong>Sell Position SL</strong> = Buy Stop เหนือราคา → Trigger Buy Market ราคาเคลื่อนขึ้นต่อ</li>
+    </ul>
+    <table>
+      <thead><tr><th></th><th>TP</th><th>SL</th></tr></thead>
+      <tbody>
+        <tr><td>ประเภท Order</td><td>Limit Order</td><td>Stop Order</td></tr>
+        <tr><td>Slippage</td><td>น้อยมาก หรือไม่มี</td><td>เป็นไปได้ โดยเฉพาะในตลาดผันผวนสูง</td></tr>
+        <tr><td>ผลหลัง Trigger</td><td>ราคาชะลอตัวหรือพลิกกลับ</td><td>ราคาเคลื่อนต่อในทิศทางเดิม</td></tr>
+        <tr><td>สถานะใน Book</td><td>ปรากฏใน Book</td><td>เก็บที่ Broker เท่านั้น</td></tr>
+      </tbody>
+    </table>
+    <hr>
+
+    <h1>5. Stop Loss Hunt (Liquidity Hunt)</h1>
+    <p>กลไกที่ผู้ร่วมตลาดรายใหญ่ (Smart Money) ใช้ประโยชน์จาก Stop Orders ของ Retail Trader โดย Stop ที่ถูก Trigger จะแปลงสภาพเป็น Market Order ซึ่งสามารถนำมาใช้เป็น Counterparty ในการสร้างสถานะการลงทุนได้</p>
+    <ul>
+      <li>Smart Money วิเคราะห์ระดับราคาที่ Retail มักสะสม SL ไว้ (Swing High/Low, Round Number)</li>
+      <li>ดันราคาไปแตะระดับนั้น → SL ถูก Trigger → แปลงสภาพเป็น Market Order</li>
+      <li>Smart Money ใช้ Volume ดังกล่าวเป็น Counterparty จากนั้นพลิกทิศทางราคา</li>
+    </ul>
+    <p class="note">Smart Money ไม่สามารถมองเห็น Stop Orders โดยตรง แต่สามารถคาดการณ์ตำแหน่งได้จากพฤติกรรมที่เป็นรูปแบบซ้ำของ Retail Trader</p>
+    <hr>
+
+    <h1>6. สถานการณ์การเคลื่อนที่ของราคา</h1>
+    <table>
+      <thead><tr><th>สถานการณ์</th><th>ผลที่เกิดขึ้น</th><th>กลไกอธิบาย</th></tr></thead>
+      <tbody>
+        <tr><td>Limit Order สะสมหนาแน่น</td><td>ราคาชะลอตัวหรือ Bounce</td><td>Market Order ต้องบริโภค Limit ออกก่อน</td></tr>
+        <tr><td>Stop Orders ถูก Trigger</td><td>ราคาเคลื่อนต่อในทิศทางเดิม</td><td>Stop แปลงสภาพเป็น Market Order</td></tr>
+        <tr><td>Order Book เบาบาง (FVG)</td><td>ราคาเคลื่อนที่อย่างรวดเร็ว</td><td>ไม่มี Limit Order ต้านทาน</td></tr>
+        <tr><td>Market Order ขนาดใหญ่</td><td>เกิด Slippage</td><td>บริโภค Limit ข้ามหลายระดับราคาพร้อมกัน</td></tr>
+        <tr><td>ราคาถึงระดับ TP</td><td>ราคาชะลอตัวหรือพลิกกลับ</td><td>Limit Order ดูดซับ Market Order</td></tr>
+      </tbody>
+    </table>
+    <hr>
+
+    <h1>7. การบูรณาการ SMC กับ Order Flow</h1>
+    <p><span class="cy">SMC</span> ระบุ <em>ตำแหน่ง</em> ที่คาดว่าจะเกิด Reaction — <span class="cy">Order Flow</span> ยืนยันว่า <em>Reaction นั้นเกิดขึ้นจริงหรือไม่</em></p>
+    <table>
+      <thead><tr><th>แนวคิด SMC</th><th>คำอธิบายเชิง Order Flow</th></tr></thead>
+      <tbody>
+        <tr><td>Order Block</td><td>โซนที่มี Limit Orders สะสมหนาแน่น ราคาต้องบริโภคออกก่อนจึงจะผ่านได้</td></tr>
+        <tr><td>FVG</td><td>Order Book เบาบางมาก ราคาเคลื่อนผ่านอย่างรวดเร็วโดยไม่มีแรงต้าน</td></tr>
+        <tr><td>SSL / BSL</td><td>บริเวณที่ Stop Orders กองสะสมอยู่ — เป้าหมายหลักของ Smart Money</td></tr>
+        <tr><td>Inducement</td><td>กลไกล่อให้ Retail วาง SL แล้วกวาด Liquidity ออกจากตลาด</td></tr>
+        <tr><td>Displacement</td><td>Market Order ขนาดใหญ่บริโภค Limit Order ข้ามหลายระดับราคาพร้อมกัน</td></tr>
+        <tr><td>FRVP + OB</td><td>การใช้ FRVP คลุม OB เพื่อระบุ POC ซึ่งเป็นจุด Entry ที่แม่นยำที่สุดใน OB</td></tr>
+      </tbody>
+    </table>
+    <div class="doc-footer">ORDER FLOW REFERENCE · SMC × MATCHING ENGINE · มีนาคม 2569</div>
+  </div>
+
+  <!-- ===== ENGLISH ===== -->
+  <div class="ref-section" id="ref-en" style="font-family:'Rajdhani',sans-serif">
+
+    <div style="background:rgba(255,152,0,0.07);border:1px solid rgba(255,152,0,0.3);border-radius:4px;padding:10px 14px;margin-bottom:16px;">
+      <span style="color:var(--match);font-weight:700;letter-spacing:1px;">⚠ SIMPLIFIED EDUCATIONAL MODEL</span>
+      <p style="margin-top:6px;">This tool is a simplified simulation designed to illustrate the core mechanics of Order Flow. Real exchanges implement additional complexity including Price-Time Priority queuing, Iceberg Orders, Hidden Liquidity, and co-location latency. The concepts demonstrated here reflect the fundamental principles — not the full technical specification of any live exchange.</p>
+    </div>
+
+    <h1>1. Order Flow</h1>
+    <p>Price movement is the direct result of <span class="g">Market Orders</span> consuming <span class="go">Limit Orders</span> within the Order Book. This process is governed by <strong>matched volume</strong>, not by the relative count of buyers and sellers.</p>
+    <ul>
+      <li>A <span class="g">Buy Market Order</span> consumes Sell Limit Orders → price advances upward</li>
+      <li>A <span class="r">Sell Market Order</span> consumes Buy Limit Orders → price declines downward</li>
+      <li>The side with greater volume determines the direction of price movement</li>
+    </ul>
+    <hr>
+
+    <h1>2. Order Classification</h1>
+    <h2>2.1 Market Order</h2>
+    <p>Executed immediately at the prevailing market price. Does not rest in the Order Book. Exerts an instantaneous impact on price. Large-sized Market Orders may cause <strong>Slippage</strong>.</p>
+    <h2>2.2 Limit Order</h2>
+    <p>Placed at a specified price and queued within the Order Book, awaiting execution when the market price reaches that level. Carries <strong>no Slippage risk</strong> due to the predetermined execution price.</p>
+    <ul>
+      <li><span class="g">Buy Limit</span> — placed below current price; awaits execution at a lower level</li>
+      <li><span class="r">Sell Limit</span> — placed above current price; awaits execution at a higher level</li>
+    </ul>
+    <h2>2.3 Stop Order</h2>
+    <p>Remains dormant until the market price reaches the designated Stop Price, at which point it is immediately converted into a Market Order, propagating price in the prevailing direction.</p>
+    <ul>
+      <li><span class="g">Buy Stop</span> — placed above current price; triggers a Buy Market Order on breach</li>
+      <li><span class="r">Sell Stop</span> — placed below current price; triggers a Sell Market Order on breach</li>
+    </ul>
+    <table>
+      <thead><tr><th>Order Type</th><th>In Order Book?</th><th>Slippage Risk?</th><th>Upon Execution</th></tr></thead>
+      <tbody>
+        <tr><td>Market Order</td><td>No</td><td>Present</td><td>Executes at market price immediately</td></tr>
+        <tr><td>Limit Order</td><td>Yes</td><td>None</td><td>Executes at specified price</td></tr>
+        <tr><td>Stop Order</td><td>No (Broker-side)</td><td>Present</td><td>Converted to Market Order</td></tr>
+      </tbody>
+    </table>
+    <hr>
+
+    <h1>3. Order Book</h1>
+    <p>A real-time record of all active Limit Orders awaiting execution, organized into two opposing sides: <span class="cy">Bid (buy-side)</span> and <span class="cy">Ask (sell-side)</span>.</p>
+    <ul>
+      <li><span class="go">Best Bid</span> — highest price at which a buyer is currently willing to transact</li>
+      <li><span class="go">Best Ask</span> — lowest price at which a seller is currently willing to transact</li>
+      <li><span class="go">Spread</span> — differential between the Best Ask and Best Bid</li>
+      <li><span class="go">Depth</span> — cumulative volume available at each price level</li>
+    </ul>
+    <p class="note">Note: Stop Orders are not visible in the public Order Book. They are maintained server-side at the broker only.</p>
+    <hr>
+
+    <h1>4. Take Profit (TP) and Stop Loss (SL)</h1>
+    <h2>4.1 Take Profit (TP) — Limit Order</h2>
+    <p>Functions as a Limit Order in the anticipated direction of price movement. Executes as a Limit Order with <strong>no Slippage</strong>. Price may decelerate or reverse at this level.</p>
+    <ul>
+      <li><strong>Buy Position TP</strong> = Sell Limit above current price → price may decelerate or reverse</li>
+      <li><strong>Sell Position TP</strong> = Buy Limit below current price → price may decelerate or reverse</li>
+    </ul>
+    <h2>4.2 Stop Loss (SL) — Stop Order</h2>
+    <p>Functions as a Stop Order. Immediately converted into a Market Order upon the market reaching the SL level. Slippage may occur. Price continues in the prevailing direction.</p>
+    <ul>
+      <li><strong>Buy Position SL</strong> = Sell Stop below current price → triggers Sell Market; price continues lower</li>
+      <li><strong>Sell Position SL</strong> = Buy Stop above current price → triggers Buy Market; price continues higher</li>
+    </ul>
+    <table>
+      <thead><tr><th></th><th>Take Profit (TP)</th><th>Stop Loss (SL)</th></tr></thead>
+      <tbody>
+        <tr><td>Order Classification</td><td>Limit Order</td><td>Stop Order</td></tr>
+        <tr><td>Slippage Risk</td><td>Minimal to none</td><td>Present; amplified in fast markets</td></tr>
+        <tr><td>Post-Trigger Price Behavior</td><td>Decelerates or reverses</td><td>Continues in prevailing direction</td></tr>
+        <tr><td>Order Book Visibility</td><td>Visible in Book</td><td>Broker-side only</td></tr>
+      </tbody>
+    </table>
+    <hr>
+
+    <h1>5. Stop Loss Hunt (Liquidity Hunt)</h1>
+    <p>A mechanism by which institutional participants (Smart Money) exploit the predictable Stop Order placement of retail traders. Triggered Stops become Market Orders used as counterparty volume.</p>
+    <ul>
+      <li>Institutional participants identify Stop Order clusters (Swing Highs/Lows, Round Numbers, S/R)</li>
+      <li>Price is engineered to reach that level → Stops trigger → converted to Market Orders</li>
+      <li>Institutional participants absorb the flow as counterparty, then reverse price direction</li>
+    </ul>
+    <p class="note">Institutional participants do not have direct visibility into Stop Orders. Positions are inferred from repetitive retail behavioral patterns.</p>
+    <hr>
+
+    <h1>6. Price Movement Mechanics</h1>
+    <table>
+      <thead><tr><th>Scenario</th><th>Market Response</th><th>Underlying Mechanism</th></tr></thead>
+      <tbody>
+        <tr><td>Dense Limit Order concentration</td><td>Price decelerates or reverses</td><td>Market Orders must consume Limits before advancing</td></tr>
+        <tr><td>Stop Orders triggered</td><td>Price continues in prevailing direction</td><td>Stops converted to Market Orders</td></tr>
+        <tr><td>Thin Order Book (FVG)</td><td>Rapid, unimpeded price movement</td><td>Absence of Limit Order resistance</td></tr>
+        <tr><td>Large Market Order submitted</td><td>Slippage occurs</td><td>Consumes Limits across multiple price levels</td></tr>
+        <tr><td>Price reaches TP level</td><td>Price decelerates or reverses</td><td>Limit Orders absorb incoming Market Order flow</td></tr>
+      </tbody>
+    </table>
+    <hr>
+
+    <h1>7. Integration of SMC and Order Flow</h1>
+    <p><span class="cy">SMC</span> identifies <em>where</em> a reaction is anticipated. <span class="cy">Order Flow</span> confirms <em>whether that reaction is actually occurring</em> at the identified level.</p>
+    <table>
+      <thead><tr><th>SMC Concept</th><th>Order Flow Interpretation</th></tr></thead>
+      <tbody>
+        <tr><td>Order Block</td><td>Zone of concentrated Limit Order activity; price must consume before advancing</td></tr>
+        <tr><td>FVG</td><td>Sparse Order Book depth; price traverses rapidly due to absence of resistance</td></tr>
+        <tr><td>SSL / BSL</td><td>Levels where Stop Orders cluster; primary targets for institutional liquidity collection</td></tr>
+        <tr><td>Inducement</td><td>Deliberate move to prompt retail SL placement, which is subsequently hunted</td></tr>
+        <tr><td>Displacement</td><td>High-volume Market Order consuming Limits across multiple levels in rapid succession</td></tr>
+        <tr><td>FRVP + OB</td><td>Applying FRVP to an OB reveals the POC — most precise entry level within the zone</td></tr>
+      </tbody>
+    </table>
+    <div class="doc-footer">ORDER FLOW REFERENCE · SMC × MATCHING ENGINE · 2026</div>
+  </div>
+
+  <!-- ===== TERMS OF USE ===== -->
+  <div class="ref-section" id="ref-terms" style="font-family:'Rajdhani',sans-serif">
+    <h1>TERMS OF USE</h1>
+    <h2>1. LICENSE</h2>
+    <p>This software is licensed, not sold. One license key permits use by one individual across personal devices only. Sharing, reselling, or redistributing this license is strictly prohibited.</p>
+    <hr>
+    <h2>2. EDUCATIONAL PURPOSE</h2>
+    <p>OrderFlow X is designed solely for educational purposes to simulate order book mechanics. It does not connect to live markets and does not constitute financial advice, investment recommendation, or trading signal of any kind.</p>
+    <hr>
+    <h2>3. NO GUARANTEE</h2>
+    <p>Simulation results do not reflect actual market conditions. The developer makes no guarantee of profitability or accuracy of any trading strategy derived from use of this tool. Past simulation results do not guarantee future performance.</p>
+    <hr>
+    <h2>4. INTELLECTUAL PROPERTY</h2>
+    <p>All code, design, and content within this application is the intellectual property of the developer. Reverse engineering, modification, or redistribution is prohibited without written permission.</p>
+    <hr>
+    <h2>5. LIMITATION OF LIABILITY</h2>
+    <p>The developer is not liable for any financial losses resulting from use or misuse of this tool. By using this software, you agree to take full responsibility for your own trading decisions.</p>
+    <hr>
+    <h2>6. DISCLAIMER</h2>
+    <p>Trading in financial markets involves substantial risk of loss and is not suitable for every investor. The high degree of leverage can work against you as well as for you. You should carefully consider your investment objectives, level of experience, and risk appetite before using any trading tool or strategy.</p>
+    <div class="doc-footer">© 2026 OrderFlow X — All Rights Reserved · v1.01.2</div>
+  </div>
+
+  </div><!-- end ref-body -->
+</div><!-- end ref-modal -->
+</div><!-- end ref-overlay -->
+</body>
+</html>
