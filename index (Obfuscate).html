@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>OrderFlow X — v1.01.2</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&family=Sarabun:wght@400;600;700&display=swap');
+:root {
+  --bg: #04080c; --panel: #080f18; --border: #0d2030;
+  --buy: #00e676; --sell: #ff3d5a; --accent: #00b8d9;
+  --text: #b8dce8; --dim: #3a6070; --gold: #ffd600;
+  --match: #ff9800; --purple: #b388ff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Rajdhani', sans-serif; min-height: 100vh; }
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background-image: linear-gradient(rgba(0,184,217,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,184,217,0.025) 1px,transparent 1px);
+  background-size: 32px 32px; pointer-events: none; z-index: 0;
+}
+.wrap { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 10px 10px 30px; }
+
+header { text-align: center; padding: 14px 0 12px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: 5px; color: var(--accent); text-shadow: 0 0 20px rgba(0,184,217,0.5); }
+header p { color: var(--dim); font-size: 0.7rem; letter-spacing: 2px; margin-top: 4px; }
+
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 12px; position: relative; margin-bottom: 10px; overflow: hidden; }
+.panel::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.panel.p-accent::before { background: var(--accent); }
+.panel.p-gold::before { background: var(--gold); }
+.panel.p-buy::before { background: var(--buy); }
+.panel.p-sell::before { background: var(--sell); }
+.panel.p-dim::before { background: var(--dim); }
+.panel.p-match::before { background: var(--match); }
+.ptitle { font-size: 0.65rem; letter-spacing: 3px; color: var(--dim); margin-bottom: 10px; text-transform: uppercase; }
+
+.stats-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.sbox { flex: 1; min-width: 65px; background: rgba(0,0,0,0.5); border: 1px solid var(--border); border-radius: 3px; padding: 7px 6px; text-align: center; }
+.sbox .sl { font-size: 0.55rem; letter-spacing: 2px; color: var(--dim); display: block; }
+.sbox .sv { font-family: 'Share Tech Mono', monospace; font-size: 0.95rem; display: block; margin-top: 2px; }
+
+.top-grid { display: grid; grid-template-columns: 1fr 340px; gap: 10px; margin-bottom: 10px; }
+@media(max-width:680px){ .top-grid{ grid-template-columns:1fr; } }
+
+/* ============================================================
+   MOBILE RESPONSIVE — max 680px
+   ============================================================ */
+@media(max-width:680px){
+  header h1 { font-size: 1.2rem; letter-spacing: 3px; }
+  header p  { font-size: 0.6rem; letter-spacing: 1px; }
+  .stats-row { gap: 4px; }
+  .sbox { min-width: 0; flex: 1; padding: 5px 4px; }
+  .sbox .sv { font-size: 0.8rem; }
+  .sbox .sl { font-size: 0.5rem; letter-spacing: 1px; }
+  .sbox-hide { display: none; }
+  .ibar-wrap { padding: 0 0 6px; }
+  .mob-tabs { display: flex !important; gap: 0; margin-bottom: 0; border-bottom: 1px solid var(--border); }
+  .mob-panel { display: none; }
+  .mob-panel.active { display: block; }
+
+/* Desktop — show all panels, DOM panel always visible in its own row */
+@media(min-width:681px){
+  .mob-panel { display: block !important; }
+  #mpanel-dom { margin-top: 8px; }
+}
+  .top-grid { display: block; gap: 0; margin-bottom: 0; }
+  .top-grid > .panel { margin-bottom: 0; border-radius: 0 0 4px 4px; border-top: none; }
+  .mob-controls {
+    position: sticky; bottom: 0; z-index: 100;
+    background: #04080c; border-top: 1px solid var(--border);
+    padding: 8px 10px;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .mob-controls .btn-simulate  { font-size: 0.85rem; width:100%; min-width:unset; height:38px; padding:0; }
+  .mob-controls .btn-newcandle { font-size: 0.85rem; width:100%; min-width:unset; height:38px; padding:0; }
+  .mob-controls .btn-reset     { font-size: 0.85rem; width:100%; min-width:unset; height:38px; padding:0; }
+  .mob-controls .btn-ref       { font-size: 0.85rem; width:100%; min-width:unset; height:38px; padding:0; }
+  @media (orientation: landscape) {
+    .mob-controls { grid-template-columns: 1fr 1fr 1fr 1fr !important; }
+    .mob-controls .btn-simulate,
+    .mob-controls .btn-newcandle,
+    .mob-controls .btn-reset,
+    .mob-controls .btn-ref { height:38px; }
+  }
+  .desktop-simulate { display: none !important; }
+  .forms-row { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .frow2 { grid-template-columns: 1fr 1fr; }
+  .fgroup input, .fgroup select { font-size: 0.8rem; padding: 6px 8px; }
+  .btn { padding: 10px; font-size: 0.95rem; }
+  .fgroup label span { display: none; }
+  .acc-body.closed { max-height: 0 !important; overflow: hidden; }
+  #candleStatus { font-size: 0.62rem; padding: 4px; }
+  .disclaimer-bar { font-size: 0.5rem; padding: 8px 10px; }
+}
+.mob-tabs { display: none; }
+.mob-controls { display: none; }
+
+#chartCanvas { width:100%; display:block; background:#030810; border-radius:3px; }
+
+/* ORDER BOOK */
+.ob-header-row { display: grid; grid-template-columns: 55px 1fr 1fr 1fr; gap: 2px; font-size: 0.58rem; letter-spacing: 2px; color: var(--dim); padding: 0 4px 6px; border-bottom: 1px solid var(--border); }
+.ob-header-row span:not(:first-child) { text-align: right; }
+.ob-row { display: grid; grid-template-columns: 55px 1fr 1fr 1fr; gap: 2px; padding: 2px 4px; font-family: 'Share Tech Mono', monospace; font-size: 0.75rem; position: relative; }
+.ob-row span:not(:first-child) { text-align: right; position: relative; z-index: 1; }
+.ob-row span:first-child { font-size: 0.6rem; letter-spacing: 1px; }
+.ob-depth { position: absolute; top:0; bottom:0; right:0; opacity: 0.13; border-radius: 2px; }
+.sell-row span { color: var(--sell); }
+.buy-row span { color: var(--buy); }
+.sell-row span:first-child { color: rgba(255,61,90,0.5); }
+.buy-row span:first-child { color: rgba(0,230,118,0.5); }
+.sell-row .ob-depth { background: var(--sell); }
+.buy-row .ob-depth { background: var(--buy); }
+.ob-spread { background: rgba(255,214,0,0.06); border-top: 1px solid rgba(255,214,0,0.2); border-bottom: 1px solid rgba(255,214,0,0.2); padding: 5px 4px; }
+.ob-price-center { text-align:center; color: var(--gold); font-size: 1.1rem; font-weight: 700; letter-spacing:2px; font-family:'Share Tech Mono',monospace; }
+.ob-sub { display:flex; justify-content:space-between; font-size:0.6rem; color:var(--dim); margin-top:3px; font-family:'Share Tech Mono',monospace; }
+.ob-empty { font-size:0.65rem; color:var(--dim); padding:2px 4px; font-family:'Share Tech Mono',monospace; opacity:0.3; display:grid; grid-template-columns:55px 1fr 1fr 1fr; gap:2px; }
+.ob-empty span:not(:first-child) { text-align:right; }
+
+.forms-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.fgroup { margin-bottom: 8px; }
+.fgroup label { display:block; font-size:0.6rem; letter-spacing:2px; color:var(--dim); margin-bottom:4px; }
+.fgroup input, .fgroup select { width:100%; background:rgba(0,0,0,0.6); border:1px solid var(--border); border-radius:3px; color:var(--text); padding:7px 9px; font-family:'Share Tech Mono',monospace; font-size:0.85rem; outline:none; }
+.fgroup input:focus, .fgroup select:focus { border-color:var(--accent); }
+.fgroup select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2300b8d9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 10px 6px;
+  cursor: pointer;
+}
+.fgroup select option { background:#080f18; }
+.frow2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.btn { width:100%; padding:9px; border:none; border-radius:3px; font-family:'Rajdhani',sans-serif; font-size:1rem; font-weight:700; letter-spacing:2px; cursor:pointer; transition:all 0.15s; margin-top:2px; }
+.btn-buy { background:var(--buy); color:#000; }
+.btn-buy:hover { box-shadow:0 0 15px rgba(0,230,118,0.4); }
+.btn-sell { background:var(--sell); color:#fff; }
+.btn-sell:hover { box-shadow:0 0 15px rgba(255,61,90,0.4); }
+
+/* ===== REFERENCE MODAL ===== */
+.ref-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:1000; backdrop-filter:blur(4px); }
+.ref-overlay.open { display:flex; flex-direction:column; }
+.ref-modal { display:flex; flex-direction:column; width:100%; max-width:760px; height:100vh; margin:0 auto; background:#04080C; border-left:1px solid var(--border); border-right:1px solid var(--border); }
+.ref-header { display:flex; justify-content:space-between; align-items:center; padding:12px 18px; background:#0A1520; border-bottom:1px solid var(--border); flex-shrink:0; }
+.ref-title { font-family:'Share Tech Mono',monospace; font-size:0.9rem; letter-spacing:4px; color:var(--accent); }
+.ref-tabs { display:flex; gap:0; }
+.ref-tab { padding:6px 20px; font-family:'Share Tech Mono',monospace; font-size:0.65rem; letter-spacing:2px; color:var(--dim); background:none; border:none; border-bottom:2px solid transparent; cursor:pointer; transition:all 0.2s; }
+.ref-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.ref-close { background:none; border:none; color:var(--dim); font-size:1.2rem; cursor:pointer; padding:4px 8px; transition:color 0.2s; }
+.ref-close:hover { color:var(--text); }
+.ref-body { flex:1; overflow-y:auto; padding:20px 22px 40px; }
+.ref-body::-webkit-scrollbar { width:4px; }
+.ref-body::-webkit-scrollbar-thumb { background:var(--border); }
+.ref-section {
+  display: none;
+  position: relative;
+}
+.ref-section.active { display: block; }
+.ref-section::before {
+  content: 'OrderFlow X';
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 4rem; font-weight: 700;
+  color: rgba(0,184,217,0.04);
+  letter-spacing: 8px; white-space: nowrap;
+  pointer-events: none; user-select: none;
+  z-index: 0;
+}
+
+/* Reference Typography */
+.ref-body h1 { font-size:12.5px; font-weight:700; color:var(--accent); margin:20px 0 5px; padding-bottom:4px; border-bottom:1px solid rgba(0,184,217,0.2); letter-spacing:0.5px; }
+.ref-body h2 { font-size:11px; font-weight:700; color:var(--gold); margin:12px 0 3px; }
+.ref-body p  { font-size:11.5px; color:var(--text); margin:4px 0; line-height:1.65; }
+.ref-body ul { padding-left:16px; margin:4px 0; }
+.ref-body li { font-size:11.5px; margin:2px 0; line-height:1.55; color:var(--text); }
+.ref-body hr { border:none; border-top:0.5px solid var(--border); margin:14px 0; }
+.ref-body .note { color:var(--dim); font-style:italic; font-size:10.5px; margin:4px 0; }
+.ref-body .g  { color:var(--buy);  font-weight:600; }
+.ref-body .r  { color:var(--sell); font-weight:600; }
+.ref-body .go { color:var(--gold); font-weight:600; }
+.ref-body .cy { color:var(--accent); font-weight:600; }
+.ref-body table { width:100%; border-collapse:collapse; margin:8px 0; font-size:10.5px; }
+.ref-body thead tr { background:#0A1520; }
+.ref-body thead th { color:var(--accent); font-weight:600; padding:5px 8px; border:0.5px solid var(--border); text-align:left; }
+.ref-body tbody tr:nth-child(odd)  { background:#04080C; }
+.ref-body tbody tr:nth-child(even) { background:#070D13; }
+.ref-body tbody td { padding:5px 8px; border:0.5px solid var(--border); vertical-align:top; line-height:1.5; }
+.ref-body .doc-footer { text-align:center; font-size:8px; color:#2A3A4A; letter-spacing:2px; margin-top:30px; padding-top:10px; border-top:0.5px solid var(--border); font-family:'Share Tech Mono',monospace; }
+.btn-newcandle { background:transparent; border:2px solid var(--gold); color:var(--gold); width:auto; min-width:140px; height:42px; padding:0 16px; border-radius:3px; cursor:pointer; font-family:'Rajdhani',sans-serif; letter-spacing:2px; font-weight:700; font-size:1rem; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.btn-newcandle:hover { background:rgba(255,214,0,0.1); box-shadow:0 0 12px rgba(255,214,0,0.3); }
+.btn-simulate { background:rgba(255,152,0,0.1); border:2px solid var(--match); color:var(--match); min-width:140px; height:42px; padding:0 16px; border-radius:3px; cursor:pointer; font-family:'Rajdhani',sans-serif; letter-spacing:2px; font-weight:700; font-size:1rem; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.btn-simulate:hover { background:rgba(255,152,0,0.2); box-shadow:0 0 15px rgba(255,152,0,0.4); }
+.btn-reset { background:transparent; border:2px solid var(--dim); color:var(--dim); min-width:140px; height:42px; padding:0 16px; border-radius:3px; cursor:pointer; font-family:'Rajdhani',sans-serif; letter-spacing:2px; font-weight:700; font-size:1rem; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.btn-reset:hover { border-color:var(--text); color:var(--text); }
+.btn-ref { background:rgba(0,184,217,0.08); border:2px solid rgba(0,184,217,0.4); color:var(--accent); height:42px; padding:0 16px; border-radius:3px; cursor:pointer; font-family:'Rajdhani',sans-serif; letter-spacing:2px; font-size:1rem; font-weight:700; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.btn-ref:hover { background:rgba(0,184,217,0.18); box-shadow:0 0 12px rgba(0,184,217,0.3); }
+.candle-status { text-align:center; font-family:'Share Tech Mono',monospace; font-size:0.72rem; margin-bottom:8px; padding:5px; border-radius:3px; }
+.candle-status.recording { background:rgba(0,230,118,0.08); border:1px solid rgba(0,230,118,0.3); color:var(--buy); }
+.candle-status.idle { background:rgba(255,214,0,0.05); border:1px solid rgba(255,214,0,0.2); color:var(--dim); }
+
+.porder { display:flex; justify-content:space-between; align-items:center; padding:4px 8px; margin-bottom:3px; border-radius:2px; font-family:'Share Tech Mono',monospace; font-size:0.72rem; }
+.porder.buy-o { background:rgba(0,230,118,0.07); border-left:2px solid var(--buy); }
+.porder.sell-o { background:rgba(255,61,90,0.07); border-left:2px solid var(--sell); }
+.xbtn { background:transparent; border:1px solid var(--dim); color:var(--dim); padding:1px 5px; font-size:0.6rem; border-radius:2px; cursor:pointer; }
+.xbtn:hover { border-color:var(--sell); color:var(--sell); }
+
+.tlog { max-height:130px; overflow-y:auto; font-family:'Share Tech Mono',monospace; font-size:0.72rem; }
+.tlog::-webkit-scrollbar { width:3px; }
+.tlog::-webkit-scrollbar-thumb { background:var(--border); }
+.tentry { padding:3px 8px; margin-bottom:2px; border-radius:2px; border-left:2px solid; background:rgba(0,0,0,0.3); animation:sIn 0.25s ease; }
+@keyframes sIn { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:translateX(0)} }
+.tentry.matched { border-color:var(--match); color:var(--match); }
+.tentry.pending { border-color:var(--dim); color:var(--dim); }
+.tentry.info { border-color:var(--accent); color:var(--accent); }
+.tentry.up { border-color:var(--buy); color:var(--buy); }
+.tentry.dn { border-color:var(--sell); color:var(--sell); }
+.empty { text-align:center; color:var(--dim); font-size:0.72rem; padding:10px; letter-spacing:1px; }
+
+/* Simulate button grid */
+.sim-btn-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.sim-btn-grid .btn-simulate,
+.sim-btn-grid .btn-newcandle,
+.sim-btn-grid .btn-reset,
+.sim-btn-grid .btn-ref {
+  width: 100%;
+  min-width: unset;
+}
+@media (orientation: landscape) {
+  .sim-btn-grid { grid-template-columns: 1fr 1fr 1fr 1fr; }
+}
+
+#myOrderList::-webkit-scrollbar,
+#pendingList::-webkit-scrollbar { width: 4px; }
+#myOrderList::-webkit-scrollbar-track,
+#pendingList::-webkit-scrollbar-track { background: transparent; }
+#myOrderList::-webkit-scrollbar-thumb { background: rgba(179,136,255,0.35); border-radius: 2px; }
+#pendingList::-webkit-scrollbar-thumb  { background: rgba(0,184,217,0.35);  border-radius: 2px; }
+
+.disclaimer-bar {
+  text-align: center; padding: 10px 16px; margin-top: 6px;
+  font-family: 'Share Tech Mono', monospace; font-size: 0.58rem;
+  color: var(--dim); letter-spacing: 1px; line-height: 1.6;
+  border-top: 1px solid var(--border);
+}
+
+.toast {
+  position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+  background: rgba(255,61,90,0.15); border: 1px solid var(--sell);
+  color: var(--sell); padding: 8px 20px; border-radius: 4px;
+  font-family: 'Share Tech Mono', monospace; font-size: 0.75rem;
+  letter-spacing: 1px; z-index: 2000; opacity: 0;
+  transition: opacity 0.2s; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+
+/* MOB TABS & ACCORDION */
+.mob-tab {
+  flex: 1; padding: 8px 4px; text-align: center;
+  font-family: 'Share Tech Mono', monospace; font-size: 0.65rem;
+  letter-spacing: 2px; color: var(--dim); background: none;
+  border: none; border-bottom: 2px solid transparent; cursor: pointer;
+  transition: all 0.2s;
+}
+.mob-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.acc-header {
+  display: flex; justify-content: space-between; align-items: center;
+  cursor: pointer; user-select: none; margin-bottom: 0;
+}
+.acc-arrow { font-size: 0.7rem; color: var(--dim); transition: transform 0.2s; display: inline-block; }
+.acc-arrow.open { transform: rotate(180deg); }
+.acc-body { overflow: hidden; transition: max-height 0.3s ease; }
+
+.watermark {
+  position: absolute; bottom: 10px; right: 8px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem; letter-spacing: 2px;
+  color: rgba(0,184,217,0.18); pointer-events: none;
+  user-select: none; z-index: 2;
+}
+
+.btn-2col { display:grid; grid-template-columns:1fr 1fr; gap:0; margin-top:8px; border-radius:4px; overflow:hidden; }
+
+.btn-buy {
+  background: linear-gradient(180deg, #00c853 0%, #00923c 100%);
+  border: none; border-right: 1px solid rgba(0,0,0,0.3);
+  color: #fff; font-family: 'Rajdhani', sans-serif;
+  font-size: 0.84rem; font-weight: 700; letter-spacing: 2px;
+  height: 42px; cursor: pointer; transition: filter 0.15s;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+.btn-buy:hover { filter: brightness(1.15); }
+.btn-buy:active { filter: brightness(0.9); }
+
+.btn-buy-mine {
+  background: linear-gradient(180deg, #00695c 0%, #004d40 100%);
+  border: none;
+  color: #a5d6a7; font-family: 'Rajdhani', sans-serif;
+  font-size: 0.84rem; font-weight: 700; letter-spacing: 2px;
+  height: 42px; cursor: pointer; transition: filter 0.15s;
+}
+.btn-buy-mine:hover { filter: brightness(1.2); }
+.btn-buy-mine:active { filter: brightness(0.9); }
+
+.btn-sell {
+  background: linear-gradient(180deg, #e53935 0%, #b71c1c 100%);
+  border: none; border-right: 1px solid rgba(0,0,0,0.3);
+  color: #fff; font-family: 'Rajdhani', sans-serif;
+  font-size: 0.84rem; font-weight: 700; letter-spacing: 2px;
+  height: 42px; cursor: pointer; transition: filter 0.15s;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+.btn-sell:hover { filter: brightness(1.15); }
+.btn-sell:active { filter: brightness(0.9); }
+
+.btn-sell-mine {
+  background: linear-gradient(180deg, #6d1f1f 0%, #4a0f0f 100%);
+  border: none;
+  color: #ef9a9a; font-family: 'Rajdhani', sans-serif;
+  font-size: 0.84rem; font-weight: 700; letter-spacing: 2px;
+  height: 42px; cursor: pointer; transition: filter 0.15s;
+}
+.btn-sell-mine:hover { filter: brightness(1.2); }
+.btn-sell-mine:active { filter: brightness(0.9); }
+.btn-clear-mine { background:transparent; border:1px solid rgba(179,136,255,0.4); color:rgba(179,136,255,0.7); padding:6px 14px; border-radius:3px; cursor:pointer; font-family:'Rajdhani',sans-serif; letter-spacing:2px; font-size:0.85rem; transition:all 0.2s; }
+.btn-clear-mine:hover { border-color:rgba(179,136,255,0.8); color:rgba(179,136,255,1); }
+
+.ibar-labels { display:flex; justify-content:space-between; font-size:0.6rem; color:var(--dim); margin-bottom:3px; }
+.ibar { height:5px; background:var(--border); border-radius:3px; overflow:hidden; }
+.ibar-fill { height:100%; border-radius:3px; transition:width 0.4s,background 0.4s; }
+</style>
+</head>
+<body>
+
+<!-- ===== LICENSE GATE ===== -->
+<div id="licenseGate" style="display:none;position:fixed;inset:0;background:#04080c;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+  <div style="max-width:420px;width:90%;background:#080f18;border:1px solid #0d2030;border-radius:8px;padding:32px 28px;text-align:center;">
+    <div style="font-size:2.5rem;margin-bottom:8px;">🔑</div>
+    <h2 style="font-family:'Share Tech Mono',monospace;color:#00b8d9;letter-spacing:3px;font-size:1.1rem;margin-bottom:6px;">OrderFlow X</h2>
+    <p style="font-family:'Share Tech Mono',monospace;color:#3a6070;font-size:0.7rem;letter-spacing:2px;margin-bottom:24px;">ENTER LICENSE KEY TO CONTINUE</p>
+    <input id="licenseInput" type="text" placeholder="OFX-XXXX-XXXX-XXXX"
+      style="width:100%;background:rgba(0,0,0,0.6);border:1px solid #0d2030;border-radius:4px;color:#b8dce8;padding:12px 14px;font-family:'Share Tech Mono',monospace;font-size:0.9rem;text-align:center;letter-spacing:2px;margin-bottom:12px;outline:none;"
+      onkeydown="if(event.key==='Enter') submitLicense()">
+    <button onclick="submitLicense()"
+      style="width:100%;background:rgba(0,184,217,0.1);border:2px solid #00b8d9;color:#00b8d9;padding:12px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:700;letter-spacing:2px;cursor:pointer;margin-bottom:16px;transition:all 0.2s;"
+      onmouseover="this.style.background='rgba(0,184,217,0.2)'" onmouseout="this.style.background='rgba(0,184,217,0.1)'">
+      ACTIVATE
+    </button>
+    <div id="licenseMsg" style="font-family:'Share Tech Mono',monospace;font-size:0.75rem;min-height:18px;"></div>
+    <p style="font-family:'Share Tech Mono',monospace;color:#1e3a48;font-size:0.6rem;margin-top:20px;letter-spacing:1px;">FOR EDUCATIONAL USE ONLY · NOT FINANCIAL ADVICE</p>
+  </div>
+</div>
+
+<script>var a0_0x321bdd=a0_0x3a9b;(function(_0x1a2f0c,_0x2e6a59){var _0x395ee0=a0_0x3a9b,_0xb87200=_0x1a2f0c();while(!![]){try{var _0x4b8fdb=parseInt(_0x395ee0(0x156))/0x1+parseInt(_0x395ee0(0x14f))/0x2+-parseInt(_0x395ee0(0x132))/0x3*(parseInt(_0x395ee0(0x134))/0x4)+-parseInt(_0x395ee0(0x137))/0x5+-parseInt(_0x395ee0(0x13e))/0x6*(-parseInt(_0x395ee0(0x151))/0x7)+-parseInt(_0x395ee0(0x146))/0x8+parseInt(_0x395ee0(0x138))/0x9*(parseInt(_0x395ee0(0x154))/0xa);if(_0x4b8fdb===_0x2e6a59)break;else _0xb87200['push'](_0xb87200['shift']());}catch(_0x3769a0){_0xb87200['push'](_0xb87200['shift']());}}}(a0_0x3b1d,0x6e78c));function a0_0x3b1d(){var _0xbe7792=['z2v0rwXLBwvUDej5swq','Bg9Hza','y29SB3i','BwvZC2fNzq','mta2nteYBMzKzKvo','zgLZCgXHEq','i2zMm2q1yq','Dg9vChbLCKnHC2u','4PQG77Ipioc5Hoc4OEc5Ioc4QUc4SUc4OEc4SUc4O+c4LUc5Goc4IUc4T+c5Ioc4REc4OEc4LEc5Ioc4REc5Hoc4Loc5IsdGUihGUkpGUlJGUjpGUllGUkxGUk3GUiFGUypGUkVGUkhGUyG','BgLJzw5ZzuLUChv0','CMvTB3zLsxrLBq','uhjV','mJG3nZCYognzCgz6Aa','DMfSDwu','i2zMotGWma','BgLJzw5ZzuDHDgu','Ahr0Chm6lY9Zy3jPChqUz29Vz2XLlMnVBs9TywnYB3mVCY9bs2z5y2j3EwTtywX2CxyZy3yXwKvcqNPywvyYvfLMuZLrt2zonvzirLjhAJjMAhzYB1D6z1jkytD6qZeWzMvjAfbSBuiXDLr5DY9LEgvJ','CgXHBG','DhjPBq','s2v5ioc5Hoc4OEc5Ioc4LUc4UEc4GEc4LEc5IEc4REc4HW','iZaWzty3nG','mZa0nta0uLrpCevd','C3rHBMrHCMq','otHoq1DlzMy','C3vJy2vZCW','u3rHBMrHCMq','nta2nteWBuPgsuzh','p2fJDgLVBJ12ywXPzgf0zszRzxK9','ode5mZi1ufvTwujf','C2v0sxrLBq','4lIb4lIZ4lIL4lIX4lIh4lIv4lIJ4lIN4lIi4lIQ4lIT4lIAlI4U','ChjV','Dgv4DenVBNrLBNq','DgHLBG','C3r5Bgu','BgLJzw5Zzu1ZzW','z2v0sxrLBq','BM9Uzq','4lIb4lIJ4lI44lIt4lIY4lIb4lIJ4lIT4lIbieXPy2vUC2uGs2v5','mtHwCNPts2S','zMXLEa','mZe4ota0Aur1venP','i2zMzdyWma','y2f0y2G','mJqZmZuXmgretfr3tW','otL4DLLjwLu','ywrKrxzLBNrmAxn0zw5LCG'];a0_0x3b1d=function(){return _0xbe7792;};return a0_0x3b1d();}var SCRIPT_URL=a0_0x321bdd(0x14a),STORAGE_KEY='ofx_license_key',STORAGE_PLAN='ofx_license_plan';function showMsg(_0x222bda,_0xa335e7){var _0x3b9f22=a0_0x321bdd,_0x1a80b2=document[_0x3b9f22(0x13a)](_0x3b9f22(0x12e));_0x1a80b2[_0x3b9f22(0x15a)]=_0x222bda,_0x1a80b2[_0x3b9f22(0x15c)][_0x3b9f22(0x13c)]=_0xa335e7||_0x3b9f22(0x148);}function unlockApp(){var _0x4441d1=a0_0x321bdd;document[_0x4441d1(0x13a)](_0x4441d1(0x149))['style'][_0x4441d1(0x13f)]=_0x4441d1(0x130);}function submitLicense(){var _0x3035ea=a0_0x321bdd,_0x5b4662=document[_0x3035ea(0x13a)](_0x3035ea(0x143))[_0x3035ea(0x147)][_0x3035ea(0x14c)]()[_0x3035ea(0x141)]();if(!_0x5b4662){showMsg(_0x3035ea(0x131),_0x3035ea(0x140));return;}showMsg(_0x3035ea(0x158),_0x3035ea(0x135)),fetch(SCRIPT_URL+_0x3035ea(0x155)+encodeURIComponent(_0x5b4662))[_0x3035ea(0x15b)](function(_0x580c36){return _0x580c36['json']();})[_0x3035ea(0x15b)](function(_0x5bd4ee){var _0x2d3c19=_0x3035ea;_0x5bd4ee[_0x2d3c19(0x152)]?(localStorage[_0x2d3c19(0x157)](STORAGE_KEY,_0x5b4662),localStorage[_0x2d3c19(0x157)](STORAGE_PLAN,_0x5bd4ee['plan']||_0x2d3c19(0x150)),showMsg('✅\x20ยืนยันสำเร็จ\x20—\x20'+(_0x5bd4ee[_0x2d3c19(0x14b)]===_0x2d3c19(0x159)?_0x2d3c19(0x145):_0x2d3c19(0x153)),_0x2d3c19(0x14e)),setTimeout(unlockApp,0x320)):showMsg('❌\x20'+(_0x5bd4ee[_0x2d3c19(0x13d)]||_0x2d3c19(0x14d)),_0x2d3c19(0x140));})[_0x3035ea(0x136)](function(){var _0x1d04fe=_0x3035ea;showMsg(_0x1d04fe(0x142),'#ff9800');});}function a0_0x3a9b(_0x24f2e9,_0x2e7f89){_0x24f2e9=_0x24f2e9-0x12e;var _0x3b1d28=a0_0x3b1d();var _0x3a9b05=_0x3b1d28[_0x24f2e9];if(a0_0x3a9b['TvKxkG']===undefined){var _0x17b65e=function(_0x261e28){var _0x5ba8bc='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';var _0x222bda='',_0xa335e7='';for(var _0x1a80b2=0x0,_0x5b4662,_0x580c36,_0x5bd4ee=0x0;_0x580c36=_0x261e28['charAt'](_0x5bd4ee++);~_0x580c36&&(_0x5b4662=_0x1a80b2%0x4?_0x5b4662*0x40+_0x580c36:_0x580c36,_0x1a80b2++%0x4)?_0x222bda+=String['fromCharCode'](0xff&_0x5b4662>>(-0x2*_0x1a80b2&0x6)):0x0){_0x580c36=_0x5ba8bc['indexOf'](_0x580c36);}for(var _0x106078=0x0,_0x234f15=_0x222bda['length'];_0x106078<_0x234f15;_0x106078++){_0xa335e7+='%'+('00'+_0x222bda['charCodeAt'](_0x106078)['toString'](0x10))['slice'](-0x2);}return decodeURIComponent(_0xa335e7);};a0_0x3a9b['vxDehc']=_0x17b65e,a0_0x3a9b['WWYIOJ']={},a0_0x3a9b['TvKxkG']=!![];}var _0x2fe7d9=_0x3b1d28[0x0],_0x2a6977=_0x24f2e9+_0x2fe7d9,_0x4be341=a0_0x3a9b['WWYIOJ'][_0x2a6977];return!_0x4be341?(_0x3a9b05=a0_0x3a9b['vxDehc'](_0x3a9b05),a0_0x3a9b['WWYIOJ'][_0x2a6977]=_0x3a9b05):_0x3a9b05=_0x4be341,_0x3a9b05;}window[a0_0x321bdd(0x139)](a0_0x321bdd(0x13b),function(){var _0xaf4f46=a0_0x321bdd,_0x106078=localStorage[_0xaf4f46(0x12f)](STORAGE_KEY),_0x234f15=document[_0xaf4f46(0x13a)](_0xaf4f46(0x149));_0x106078?(_0x234f15[_0xaf4f46(0x15c)]['display']='none',fetch(SCRIPT_URL+'?action=check&key='+encodeURIComponent(_0x106078))[_0xaf4f46(0x15b)](function(_0x32fdb6){return _0x32fdb6['json']();})['then'](function(_0x23b6f0){var _0xefee8a=_0xaf4f46;!_0x23b6f0[_0xefee8a(0x152)]&&(localStorage[_0xefee8a(0x144)](STORAGE_KEY),localStorage['removeItem'](STORAGE_PLAN),_0x234f15[_0xefee8a(0x15c)]['display']=_0xefee8a(0x133));})[_0xaf4f46(0x136)](function(){var _0x13dc9d=_0xaf4f46;_0x234f15[_0x13dc9d(0x15c)][_0x13dc9d(0x13f)]=_0x13dc9d(0x130);})):_0x234f15[_0xaf4f46(0x15c)][_0xaf4f46(0x13f)]='flex';});</script>
+<div class="wrap">
+<header>
+  <h1>OrderFlow X</h1>
+  <p>ORDER BOOK × CANDLESTICK × ORDER FLOW — v1.01.2</p>
+</header>
+
+<div class="stats-row">
+  <div class="sbox"><span class="sl">LAST PRICE</span><span class="sv" id="sPrice" style="color:var(--gold)">10.00</span></div>
+  <div class="sbox"><span class="sl">BEST BID</span><span class="sv" id="sBid" style="color:var(--buy)">—</span></div>
+  <div class="sbox"><span class="sl">BEST ASK</span><span class="sv" id="sAsk" style="color:var(--sell)">—</span></div>
+  <div class="sbox"><span class="sl">SPREAD</span><span class="sv" id="sSpread" style="color:var(--gold)">—</span></div>
+  <div class="sbox sbox-hide"><span class="sl">BUY VOL</span><span class="sv" id="sBuyVol" style="color:var(--buy)">0</span></div>
+  <div class="sbox sbox-hide"><span class="sl">SELL VOL</span><span class="sv" id="sSellVol" style="color:var(--sell)">0</span></div>
+  <div class="sbox sbox-hide"><span class="sl">TRADES</span><span class="sv" id="sTrades" style="color:var(--accent)">0</span></div>
+  <div class="sbox"><span class="sl">DIRECTION</span><span class="sv" id="sDir" style="color:var(--dim)">—</span></div>
+</div>
+<div class="ibar-wrap">
+  <div class="ibar-labels"><span style="color:var(--sell)">◀ SELL PRESSURE</span><span style="color:var(--buy)">BUY PRESSURE ▶</span></div>
+  <div class="ibar"><div class="ibar-fill" id="ibarFill" style="width:50%;background:var(--dim)"></div></div>
+</div>
+
+<!-- Mobile Tab Bar -->
+<div class="mob-tabs">
+  <button class="mob-tab active" id="mtab-chart" onclick="switchMobTab('chart')">📊 CHART</button>
+  <button class="mob-tab" id="mtab-ob" onclick="switchMobTab('ob')">📖 ORDER BOOK</button>
+  <button class="mob-tab" id="mtab-dom" onclick="switchMobTab('dom')">📈 DOM</button>
+</div>
+
+<div class="top-grid">
+  <div class="panel p-gold mob-panel active" id="mpanel-chart" style="position:relative;">
+    <div class="ptitle" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>▸ CANDLESTICK CHART</span>
+      <div style="display:flex;gap:4px;align-items:center;">
+        <button id="btnCrosshair" onclick="toggleCrosshair()" style="background:transparent;border:1px solid rgba(255,61,90,0.5);color:rgba(255,61,90,0.7);padding:2px 8px;border-radius:3px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:0.7rem;letter-spacing:1px;transition:all 0.2s;height:24px;box-sizing:border-box;">✛ OFF</button>
+        <button onclick="setZoom(-0.25)" style="background:rgba(0,184,217,0.1);border:1px solid var(--accent);color:var(--accent);padding:2px 8px;border-radius:3px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:0.7rem;height:24px;box-sizing:border-box;">−</button>
+        <button onclick="setZoom(0)" style="background:rgba(0,184,217,0.1);border:1px solid var(--accent);color:var(--accent);padding:2px 8px;border-radius:3px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:0.7rem;height:24px;box-sizing:border-box;">1:1</button>
+        <button onclick="setZoom(0.25)" style="background:rgba(0,184,217,0.1);border:1px solid var(--accent);color:var(--accent);padding:2px 8px;border-radius:3px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:0.7rem;height:24px;box-sizing:border-box;">+</button>
+      </div>
+    </div>
+    <canvas id="chartCanvas" height="300"></canvas>
+    <div class="watermark">OrderFlow X © 2026</div>
+  </div>
+
+  <div class="panel p-accent mob-panel" id="mpanel-ob">
+    <div class="ptitle">▸ ORDER BOOK — 10 LEVELS EACH SIDE</div>
+    <div class="ob-header-row">
+      <span>SIDE</span><span style="text-align:right">PRICE</span><span style="text-align:right">VOL</span><span style="text-align:right">TOTAL</span>
+    </div>
+    <div id="askSection"></div>
+    <div class="ob-spread">
+      <div class="ob-price-center" id="obPrice">10.00</div>
+      <div class="ob-sub">
+        <span id="obBid" style="color:var(--buy)">BID —</span>
+        <span id="obSpread">SPD —</span>
+        <span id="obAsk" style="color:var(--sell)">ASK —</span>
+      </div>
+    </div>
+    <div id="bidSection"></div>
+  </div>
+</div>
+
+<div id="forms-original-slot"><div id="main-forms-row" class="forms-row">
+  <div class="panel p-buy">
+    <div class="frow2">
+      <div class="fgroup"><label>TYPE</label>
+        <select id="buyType" onchange="toggleBP()">
+          <option value="market">MARKET</option>
+          <option value="limit">BUY LIMIT</option>
+          <option value="stop">BUY STOP</option>
+        </select>
+      </div>
+      <div class="fgroup"><label>VOL (LOT)</label>
+        <input type="number" id="buyVol" value="1" min="0.1" step="0.1">
+      </div>
+    </div>
+    <div class="fgroup" id="buyPG" style="display:none">
+      <label>ENTRY PRICE</label><input type="number" id="buyPx" step="0.01">
+    </div>
+    <div class="frow2">
+      <div class="fgroup">
+        <label>TP <span style="color:var(--buy);font-size:0.6rem">optional</span></label>
+        <input type="number" id="buyTP" step="0.01" placeholder="0 = off">
+      </div>
+      <div class="fgroup">
+        <label>SL <span style="color:var(--sell);font-size:0.6rem">optional</span></label>
+        <input type="number" id="buySL" step="0.01" placeholder="0 = off">
+      </div>
+    </div>
+    <div class="btn-2col">
+      <button class="btn btn-buy" onclick="doBuy()">BUY</button>
+      <button class="btn btn-buy-mine" onclick="doBuyMine()">MY ORDER</button>
+    </div>
+  </div>
+  <div class="panel p-sell">
+    <div class="frow2">
+      <div class="fgroup"><label>TYPE</label>
+        <select id="sellType" onchange="toggleSP()">
+          <option value="market">MARKET</option>
+          <option value="limit">SELL LIMIT</option>
+          <option value="stop">SELL STOP</option>
+        </select>
+      </div>
+      <div class="fgroup"><label>VOL (LOT)</label>
+        <input type="number" id="sellVol" value="1" min="0.1" step="0.1">
+      </div>
+    </div>
+    <div class="fgroup" id="sellPG" style="display:none">
+      <label>ENTRY PRICE</label><input type="number" id="sellPx" step="0.01">
+    </div>
+    <div class="frow2">
+      <div class="fgroup">
+        <label>TP <span style="color:var(--buy);font-size:0.6rem">optional</span></label>
+        <input type="number" id="sellTP" step="0.01" placeholder="0 = off">
+      </div>
+      <div class="fgroup">
+        <label>SL <span style="color:var(--sell);font-size:0.6rem">optional</span></label>
+        <input type="number" id="sellSL" step="0.01" placeholder="0 = off">
+      </div>
+    </div>
+    <div class="btn-2col">
+      <button class="btn btn-sell" onclick="doSell()">SELL</button>
+      <button class="btn btn-sell-mine" onclick="doSellMine()">MY ORDER</button>
+    </div>
+  </div>
+</div>
+</div><!-- end main-forms-row -->
+</div><!-- end forms-original-slot -->
+
+<!-- DOM Panel -->
+<div class="wrap" style="padding-top:0;padding-bottom:0;">
+<div class="panel p-accent mob-panel" id="mpanel-dom" style="min-height:340px;position:relative;">
+  <div class="ptitle">▸ DEPTH OF MARKET — HORIZONTAL VOLUME PROFILE</div>
+  <canvas id="domCanvas" height="400" style="width:100%;display:block;"></canvas>
+</div>
+
+<!-- Forms row copy for DOM tab (mobile only) -->
+<div id="forms-dom-placeholder"></div>
+
+<div class="panel" style="border-color:rgba(179,136,255,0.3);">
+  <div class="acc-header" onclick="toggleAcc('myOrderAcc','myOrderArrow')">
+    <div class="ptitle" style="color:rgba(179,136,255,0.7);margin-bottom:0;">▸ MY ORDERS</div>
+    <span class="acc-arrow open" id="myOrderArrow">▼</span>
+  </div>
+  <div class="acc-body" id="myOrderAcc" style="max-height:400px;">
+    <div style="padding-top:8px;">
+      <div id="myOrderList" style="max-height:174px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(179,136,255,0.3) transparent;">
+        <div class="empty">NO MY ORDERS</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel p-dim">
+  <div class="acc-header" onclick="toggleAcc('pendingAcc','pendingArrow')">
+    <div class="ptitle" style="margin-bottom:0;">▸ PENDING ORDERS</div>
+    <span class="acc-arrow open" id="pendingArrow">▼</span>
+  </div>
+  <div class="acc-body" id="pendingAcc" style="max-height:400px;">
+    <div style="padding-top:8px;">
+      <div id="pendingList" style="max-height:174px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(0,184,217,0.3) transparent;">
+        <div class="empty">NO PENDING ORDERS</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel p-match">
+  <div class="acc-header" onclick="toggleAcc('logAcc','logArrow')">
+    <div class="ptitle" style="margin-bottom:0;">▸ MATCHING ENGINE LOG</div>
+    <span class="acc-arrow open" id="logArrow">▼</span>
+  </div>
+  <div class="acc-body" id="logAcc" style="max-height:200px;">
+    <div style="padding-top:6px;">
+      <div class="tlog" id="tlog">
+        <div class="tentry info">[ SYSTEM ] OrderFlow X v1.01.2 Ready</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Desktop Simulate Panel -->
+<div class="panel p-match desktop-simulate" style="margin-bottom:10px;">
+  <div class="ptitle">▸ SIMULATE SETTINGS</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+    <div class="fgroup">
+      <label>START PRICE</label>
+      <input type="number" id="simStartPrice" value="10.00" step="0.01" min="0.01">
+    </div>
+    <div class="fgroup">
+      <label>CANDLE COUNT</label>
+      <input type="number" id="simCandleCount" value="15" step="1" min="1" max="200">
+    </div>
+  </div>
+  <div class="sim-btn-grid">
+    <button class="btn-simulate" onclick="runSimulate()">SIMULATE</button>
+    <button class="btn-newcandle" onclick="newCandle()">NEW CANDLE</button>
+    <button class="btn-reset" onclick="reset()">RESET</button>
+    <button class="btn-ref" onclick="openRef()">REFERENCE</button>
+  </div>
+</div>
+
+<div id="candleStatus" class="candle-status idle">🕯 CANDLE — PRESS NEW CANDLE TO BEGIN</div>
+<div id="simStatus" style="display:none;text-align:center;font-family:'Share Tech Mono',monospace;font-size:0.72rem;padding:6px;margin-bottom:8px;background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.3);border-radius:3px;color:var(--match);"></div>
+</div><!-- end wrap -->
+
+<!-- Mobile Sticky Controls -->
+<div class="mob-controls">
+  <div style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+    <div class="fgroup" style="margin:0;">
+      <label>START PRICE</label>
+      <input type="number" id="simStartPriceMob" value="10.00" step="0.01" min="0.01" oninput="document.getElementById('simStartPrice').value=this.value">
+    </div>
+    <div class="fgroup" style="margin:0;">
+      <label>CANDLES</label>
+      <input type="number" id="simCandleCountMob" value="15" step="1" min="1" max="200" oninput="document.getElementById('simCandleCount').value=this.value">
+    </div>
+  </div>
+  <button class="btn-simulate" onclick="runSimulate()">SIMULATE</button>
+  <button class="btn-newcandle" onclick="newCandle()">NEW CANDLE</button>
+  <button class="btn-reset" onclick="reset()">RESET</button>
+  <button class="btn-ref" onclick="openRef()">REFERENCE</button>
+</div>
+
+<div class="disclaimer-bar">
+  ⚠ FOR EDUCATIONAL PURPOSES ONLY &nbsp;·&nbsp; NOT FINANCIAL ADVICE &nbsp;·&nbsp; DOES NOT REPRESENT REAL MARKET DATA &nbsp;·&nbsp; TRADING INVOLVES RISK<br>
+  © 2026 OrderFlow X — All Rights Reserved
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>const a0_0x32e50f=a0_0x3d6f;(function(_0xf55464,_0x2f4e22){const _0x4106ba=a0_0x3d6f,_0x3732d9=_0xf55464();while(!![]){try{const _0x11185a=parseInt(_0x4106ba(0x19a))/0x1*(-parseInt(_0x4106ba(0x19c))/0x2)+parseInt(_0x4106ba(0x1eb))/0x3+parseInt(_0x4106ba(0x23c))/0x4*(-parseInt(_0x4106ba(0x15b))/0x5)+-parseInt(_0x4106ba(0x18e))/0x6+-parseInt(_0x4106ba(0x203))/0x7*(parseInt(_0x4106ba(0x18d))/0x8)+-parseInt(_0x4106ba(0x1f7))/0x9+parseInt(_0x4106ba(0x1e5))/0xa;if(_0x11185a===_0x2f4e22)break;else _0x3732d9['push'](_0x3732d9['shift']());}catch(_0x1128d6){_0x3732d9['push'](_0x3732d9['shift']());}}}(a0_0x37e7,0xa8abb));function a0_0x37e7(){const _0x2c32a4=['o3bHzgrPBMC6mxb4idvWEdTIB3jKzxiTCMfKAxvZoJjWEdTMB250lxnPEMu6mc42nxjLBtTJB2XVCJO','zMLUza','yNv5uhG','mZu2nJK1ofzztgXLza','u1beia','lI4Upc9KAxy+','ChjLDMvUDerLzMf1Bhq','C2v0tgLUzurHC2G','yMXVy2S','CxvLCNLtzwXLy3rVCKfSBa','Bwf4sgvPz2H0','yM9Szca3ChGGu2HHCMuGvgvJAcbnB25V','C29YDa','zgvMyxvSDa','4PYvie1zie9srevsifrqienbtKnfteXfrcbaia','ntu1nJe1DMzZBeP6','yNv5uq','CMDIysGYntuSnJeSotaSmc45kq','8j+tJcbnwsbtruXmie1buKTfvcdIGjqG','Dgv4DenVBNrLBNq','zgLZCgXHEq','zg9T','zMLUzeLUzgv4','C2vSBfb4','Aw1Hz2vtBw9VDgHPBMDfBMfIBgvK','zg93BG','C2LTu3rHDhvZ','mJy4mxnxDK9vva','CMDIysGYntuSnJeSotaSmc43kq','Aw5UzxjxAwr0Aa','ksi+4PYvpc9IDxr0B24+','C2vSBfzVBa','CMDIysGWldiXmcWXotaSmsK','C3r5Bgu','ywjVDMu','C3rVCa','4PQGifnfteWGu1rpucbTDxn0igjLigjLBg93ign1CNjLBNqGChjPy2u','CMvT','pgrPDIbJBgfZCZ0IB2iTCM93igj1Es1YB3CIpGOGicaGica8C3bHBJ5cvvK8l3nWyw4+cIaGicaGidXZCgfUpG','4PYvienbtKnfteXfrcdIGjqG','ieHjvcdIGjqG','BwLU','CNrHyI0','A2v5CW','yxbWBhK','DMfSDwu','4PQGiejvwsbttcbTDxn0igjLigjLBg93ign1CNjLBNqGChjPy2u','zM9UDa','CMDIysGXmYWZmIW0ocWWlJKP','y2HHCNrdyw52yxm','y3vYC29Y','u0WGu0vuiokaLcbtzwXSifn0B3aG','zw50CNK','CMDIysGWldiZmcWXmtGSmc4Zkq','Bwf0y2G','Dg91y2HTB3zL','BwfYA2v0','Aw5MBW','yNrUq3jVC3nOywLY','ChjLDLbYAwnL','i0zgrdCWma','lw8Iihn0EwXLpsjIB3jKzxiTBgvMDc1JB2XVCJPYz2jHkde3osWXmZySmJu1ldaUnIK7iJ4kicaGicaGica','u0vmtca','zgvSDgfz','CMDIysGYntuSmJe1ldaSmc4XnsK','CMDIysGWldiZmcWXmtGSmc43kq','8j+tJcbnwsbcvvKGtufss0vuiokaLca','BgvMDfzVBa','yM9YzgvYq29SB3i','zgL2','CMDIysGWldiXmcWXotaSmc44kq','C0jPza','4PQGifnfteWGu0WGBxvZDcbIzsbHyM92zsbJDxjYzw50ihbYAwnL','y2fUzgXLCW','DM9S','CMDIysGYntuSnJeSotaSmc4Ykq','z3jHyMjPBMC','C3rYB2TLu3r5Bgu','CgfUt2zMC2v0','C2LTu3rHCNrqCMLJzq','C2vSBa','ywn0AxzL','Bwf4','C2LTq2fUzgXLq291BNq','odqZmZi4tMv3t2fZ','CMDIysGYntuSmJu1ldi1nsWWlJyP','DMfYkc0TywnJzw50kq','y2XHC3nmAxn0','iokaLcbuuKLhr0vsruqGqca','Bw9Kzq','zMLSBfjLy3q','ienbtKrmrvmGq09nueXfveuG4OcuifbYAwnLoIa','DhjPz2DLCMvK','wYbtsu1vtefursbDifrYzw5KoIa','C2vSBfr5Cgu','Dg9vChbLCKnHC2u','Dg9HC3q','igXVDcbaie1buKTfva','CMDIysGXnZKSmtm2ldi1nsWWlJCP','C3rYB2TL','icbwt0W6','qLvzifnut1a','y3jVC3nOywLY','CMDIysGYntuSmtyWlduWldeP','Bw91C2vSzwf2zq','pgrPDIbJBgfZCZ0IDgvUDhj5igLUzM8IpLSGu1Ltvevnif0GuMvZzxqG4Ocuifn0yxj0ifbYAwnLoIa','yMvNAw5qyxrO','rKXbva','zxHLy3v0zwrwB2W','DgvUDhj5ia','CMvZAxPL','4PQGieLovKfmsuqGufjjq0uG4Ocuig11C3qGyMuGz3jLyxrLCIb0AgfUida','pgj1DhrVBIbJBgfZCZ0IEgj0BIiGB25JBgLJAZ0Iy2fUy2vSt3jKzxiO','sfzoia','Dg9W','EM9VBq','qLvzia','ignHBMrSzxmGy29TCgXLDguG4OcuifbYAwnLoIa','BgvMDeLZt3jHBMDL','yNv5vM9S','y2vUDgvY','CMDIysGXnZKSmtm2ldi1nsWWlJKP','CgvUzgLUz0XPC3q','veLdsW','zgv2AwnLugL4zwXsyxrPBW','B2jbC2S','BgvMDa','iZjHnta2ma','zMLSDgvY','icbmoG','4PQGifnfteWGvfaGBxvZDcbIzsbIzwXVDYbJDxjYzw50ihbYAwnL','u0vmtcbmsu1jva','8j+vRYbdqu5eteuG4Ocuifbsrvntie5fvYbdqu5eteuGve8GqKvhsu4','Bw91C2vKB3DU','C0j1EvzVBa','iZnHnJa3ma','Bw91C2vTB3zL','yMLKu2vJDgLVBG','CMDIysGYntuSmtyWldyWldaUosK','y2XPzw50wa','pgrPDIbJBgfZCZ0Izw1WDhKIpK5pie1zie9srevsuZWVzgL2pG','CgvUzgLUzW','jsi+pc9KAxy+cIaGica8l2rPDJ4','BwfW','4PQGiejvwsbuucbTDxn0igjLigfIB3zLign1CNjLBNqGChjPy2u','ntaL','ksi+4PYvpc9IDxr0B24+cIaGicaGidWVzgL2pG','C2HVDW','DgfN','CMDIysGWldiXmcWXotaSmc45kq','CMDIysGYntuSmtuWldqWldaUoduP','yM9Szca5ChGGu2HHCMuGvgvJAcbnB25V','Bwf0y2HLza','ohb4ifnOyxjLifrLy2GGtw9UBW','ywjZ','pgrPDIbJBgfZCZ0IDgvUDhj5igLUzM8IpLSGu0LnvuXbveuGxsbhzw5LCMf0Aw5Nia','Dg91y2HZDgfYDa','y2XPzw50wq','B2jcAwq','pgrPDIbJBgfZCZ0Izw1WDhKIpK5pifbftKrjtKCGt1jervjtpc9KAxy+','B2zMC2v0v2LKDgG','BgLUzvrV','phnWyw4GC3r5Bgu9iMjHy2TNCM91BMq6CMDIysGXnZKSmtm2ldi1nsWWlJe1ktTJB2XVCJPYz2jHkde3osWXmZySmJu1ldaUosK7CgfKzgLUzZOXChGGnNb4o2jVCMrLCI1YywrPDxm6mNb4o2zVBNqTC2L6ztOWlJzYzw07iJ5qru5esu5hpc9ZCgfUpG','DMfYkc0TyNv5kq','4PQGiejvwsbtve9qig11C3qGyMuGywjVDMuGy3vYCMvUDcbWCMLJzq','pc9ZCgfUpG','C2HPzNq','C2vSBfnm','B3bLBG','CMDIysGYntuSmJu1ldi1nsWWlJKP','B2jqCMLJzq','D2HLzwW','Dg9mB2nHBgvuAw1Lu3rYAw5N','8j+tJcbnwsbtruXmia','yNv5','BM9Uzq','CMLNAhrjC09Yyw5Nzq','C2vSBfrq','pgrPDIbJBgfZCZ0ICg9YzgvYia','y3jLyxrLrwXLBwvUDa','4PYBie9o','CMDIysGYntuSmJu1ldi1nsWWlJa0kq','C0rPCG','AgvPz2H0','C2XPy2u','BxbHBMvSlq','4OArvva','Dg9gAxHLza','4PYMie1bveniicHnW5DnksdIGjqG','CMDIysGYntuSnJeSotaSmc44nsK','phnWyw4GC3r5Bgu9iMjHy2TNCM91BMq6','C2vSBfbh','iZaZmdGXma','vfaGu0vuiokaLcbcDxKGtgLTAxqG','mtbOvgT4Cva','BxrHyI0','Dg91y2HLCW','CMvMt3zLCMXHEq','igXVDcbaia','BgvUz3rO','i2nJy2nJyW','ywn0AxzLq2fUzgXL','C3bSAwnL','C3rHCNrqyw4','lNjLzI1Zzwn0Aw9U','yNv5vhLWzq','CM91BMq','BgLTAxrcDxLZ','i2zMzdyWma','vK9m','zg9Tq2fUDMfZ','C1rYywrLCW','DhjHBNnWyxjLBNq','yM9Szca4ChGGu2HHCMuGvgvJAcbnB25V','C1nWCMvHza','4PEgifnmia','C1bYAwnL','y2fUzgXLlxn0yxr1CYbPzgXL','CMDIysGWldiZmcWXmtGSmc44nsK','qLvzieXjtuLu','CMDIysGWldiWmcWXodaSmc44nsK','4PYviefvve8Tq0foq0vmteveihbHAxjLzca','C0fZAW','lNjLzI10ywi','zM9YrwfJAa','8j+vRYborvCGq0foreXfiokaLcbpCgvUieaG','vfaGu0vuiokaLcbtzwXSieXPBwL0ia','yNv5u0W','4PQGifnfteWGteLnsvqGBxvZDcbIzsbHyM92zsbJDxjYzw50ihbYAwnL','igXVDdWVC3bHBJ4','yM9SzcaXm3b4ifnOyxjLifrLy2GGtw9UBW','ndaWChG','CMLNAhrwB2W','iokaLca','zMXVB3i','y29SB3i','qvnlia','C3rHCNry','pgrPDIbJBgfZCZ0IB2iTCM93ihnLBgWTCM93iJ4kicaGicaGphnWyw4+u0vmtdWVC3bHBJ4kicaGicaGphnWyw4+','BxLpCMrLCNm','pc9KAxy+','8j+tJcbnwsbcvvKG','CgvUzgLUz0LK','CMDIysGYntuSnJeSotaSmc4WnIK','mtmZmdrZuLfMwfC','ntGZotK2ofPqCgjTuG','BgLUzvDPzhrO','BwfPBI1MB3jTCY1YB3C','pc9ZCgfUpGOGicaGicaGidXZCgfUpKaG','C2LKzq','sfzo','z2v0qM91BMrPBMDdBgLLBNrszwn0','pc9ZCgfUpGOGicaGica8C3bHBJ4','ChvZAa','BxLpCMrLCKXPC3q','CMvKDwnL','iZaWzty3nG','nJaZmZDywfDPBgq','phnWyw4+','mtbquuTxre0','z2v0q29UDgv4Da','y2XHC3noyw1L','i2zMm2q1yq','CMDIysGWldiZmcWXmtGS','zMLYC3rdAgLSza','4PYMie1bveniicHtzwXSW5DcDxLmAw1PDcKG4Ocuia','zMLSBfrLEhq','4PQGieLovKfmsuqGvK9mvu1fiokaLcbTDxn0igjLigDYzwf0zxiGDgHHBIaW','Dg9Nz2XL','4PEgifrqia','y2HHCNq','C3rYB2TLuMvJDa','CMfUzg9T','4PQGiejvwsbxquLusu5hiokaLcbpCMrLCIbcB29RigvTChr5','phnWyw4GC3r5Bgu9iMnVBg9YoG','B2zMC2v0ugfYzw50','iZaWma','phnWyw4GC3r5Bgu9iMnVBg9YoNzHCIGTlxnLBgWPo2zVBNqTC2L6ztOWlJy1CMvToYi+u0W6','y2XLyxjszwn0','y2fUzgXLlxn0yxr1CYbYzwnVCMrPBMC','B2jtChjLywq','C2LTsgLNAfzVBe5VzgvZ','CMDIysGWldiZmcWXmtGSmc4Ykq','ywrKrxzLBNrmAxn0zw5LCG','ueXbq0uGt1jervjtifrpifnfrsbdsefsva','DhLWzq','D2LKDgG','CMDIysGYntuSmJu1ldi1nsWWlJKYkq','DgXVzW','4PQGifnfteWGv0fjveLorYdIGjqGt3jKzxiGqM9VAYbLBxb0Eq','Aw5Uzxjive1m','Aw5Zzxj0qMvMB3jL','DMfSDwvZ','CMDIysG','Dgv4DefSAwDU','CMLNAhq','yNv5ueC','BgLTAxq','C2nHBgu','DMfYkc0TC2vSBcK','pgrPDIbJBgfZCZ0IB2iTzw1WDhKIpJXZCgfUpUkaLdWVC3bHBJ48C3bHBJ7IGjq8l3nWyw4+phnWyw4+4Ocupc9ZCgfUpJXZCgfUpUkaLdWVC3bHBJ48l2rPDJ4','CMDIysGYntuSmtyWlduWldaUocK','CMDIysGYntuSmJu1ldi1nsWWlJa4kq','phnWyw4+qca','Dg91y2HLBMq','CMDIysGYntuSmtyWlduWldaUosK','mtfWEcbtAgfYzsbuzwnOie1VBM8','C1nLBgXwB2W','DwLK','CMvTB3zL','ieaG','pc9ZCgfUpGOGicaGicaGidXIDxr0B24Gy2XHC3m9iNHIDg4Iig9Uy2XPy2S9iMnHBMnLBe15t3jKzxiO','qLvz','BgLTAxrtzwXSCW','yMfJA2DYB3vUza','Bw92zvrV','CMDIysGYntuSnJeSotaSmc4Zkq','CMDIysGYntuSnJeSotaS','cIaGicaGicaGphnWyw4GC3r5Bgu9iMnVBg9YoG','BxbHBMvSlwrVBq','wYbtsu1vtefursbDia','yMvSB3C','icbdoG','qLvzie1buKTfvcdIGjqG','ywrK','C2vSBfe','DMfYkc0TzgLTkq','z2v0rwXLBwvUDej5swq','DhjHzgvZ','zMLSBfn0EwXL','ChjPy2u','mtaWjq','mtG5nZiZmdbkvLf4rKq','CMDIysGYntuSnJeSotaSmsK','CMDIysGYntuSmtqWldmWldaUmtuP'];a0_0x37e7=function(){return _0x2c32a4;};return a0_0x37e7();}let S={'price':0xa,'prevPrice':0xa,'buyQ':[],'sellQ':[],'pending':[],'limitBuys':{},'limitSells':{},'trades':0x0,'buyVol':0x0,'sellVol':0x0,'uid':0x1,'candles':[],'activeCandle':null,'myOrders':[],'simHighVolNodes':[],'zoom':0x1,'panOffset':0x0,'executedVol':{},'TICK':0.05};function seedBook(){const _0x179d1e=a0_0x3d6f;for(let _0x58b49a=0x1;_0x58b49a<=0xa;_0x58b49a++){const _0x327163=parseFloat((S['price']+_0x58b49a*S[_0x179d1e(0x263)])[_0x179d1e(0x154)](0x2)),_0x5a540c=parseFloat((S[_0x179d1e(0x1e3)]-_0x58b49a*S[_0x179d1e(0x263)])[_0x179d1e(0x154)](0x2));S[_0x179d1e(0x1d2)][_0x327163[_0x179d1e(0x154)](0x2)]={'price':_0x327163,'vol':parseFloat((Math[_0x179d1e(0x1a9)]()*0x5+0x1)[_0x179d1e(0x154)](0x1))},S[_0x179d1e(0x168)][_0x5a540c[_0x179d1e(0x154)](0x2)]={'price':_0x5a540c,'vol':parseFloat((Math['random']()*0x5+0x1)[_0x179d1e(0x154)](0x1))};}}seedBook();function startCandle(){}function tickCandle(_0x5cf5ef,_0x3f555c,_0x2c403a){const _0x53897c=a0_0x3d6f;if(!S[_0x53897c(0x162)])return;S['activeCandle']['c']=_0x5cf5ef,S[_0x53897c(0x162)]['h']=Math[_0x53897c(0x23a)](S[_0x53897c(0x162)]['h'],_0x5cf5ef),S[_0x53897c(0x162)]['l']=Math[_0x53897c(0x211)](S[_0x53897c(0x162)]['l'],_0x5cf5ef),S[_0x53897c(0x162)][_0x53897c(0x232)]+=_0x3f555c;if(_0x2c403a===_0x53897c(0x147))S[_0x53897c(0x162)]['bv']+=_0x3f555c;else{if(_0x2c403a===_0x53897c(0x238))S[_0x53897c(0x162)]['sv']+=_0x3f555c;}updateCandleStatus();}function closeCandle(){}function newCandle(){const _0x469180=a0_0x3d6f;if(S[_0x469180(0x162)]){S[_0x469180(0x162)]['c']=S[_0x469180(0x1e3)],S[_0x469180(0x162)]['h']=Math[_0x469180(0x23a)](S[_0x469180(0x162)]['h'],S[_0x469180(0x1e3)]),S[_0x469180(0x162)]['l']=Math['min'](S[_0x469180(0x162)]['l'],S[_0x469180(0x1e3)]);if(S[_0x469180(0x162)][_0x469180(0x232)]>0x0||S[_0x469180(0x162)]['o']!==S['activeCandle']['c']){S[_0x469180(0x231)][_0x469180(0x196)]({...S['activeCandle']});if(S[_0x469180(0x231)]['length']>0xfa)S[_0x469180(0x231)][_0x469180(0x13f)]();}}S[_0x469180(0x162)]={'o':S[_0x469180(0x1e3)],'h':S[_0x469180(0x1e3)],'l':S['price'],'c':S['price'],'vol':0x0,'bv':0x0,'sv':0x0},log(_0x469180(0x17a)+S[_0x469180(0x1e3)][_0x469180(0x154)](0x2),_0x469180(0x221)),updateCandleStatus(),ui();}function updateCandleStatus(){const _0x11a5ff=a0_0x3d6f,_0x32c84a=document[_0x11a5ff(0x1e0)]('candleStatus');if(!S['activeCandle'])_0x32c84a['className']=_0x11a5ff(0x172),_0x32c84a[_0x11a5ff(0x1fb)]=_0x11a5ff(0x26c);else{const _0x388793=S[_0x11a5ff(0x162)],_0x36c77f=_0x388793['c']>=_0x388793['o'];_0x32c84a[_0x11a5ff(0x19e)]=_0x11a5ff(0x1b0),_0x32c84a[_0x11a5ff(0x1fb)]='●\x20REC\x20\x20O:'+_0x388793['o'][_0x11a5ff(0x154)](0x2)+'\x20\x20H:'+_0x388793['h'][_0x11a5ff(0x154)](0x2)+_0x11a5ff(0x269)+_0x388793['l'][_0x11a5ff(0x154)](0x2)+_0x11a5ff(0x1db)+S[_0x11a5ff(0x1e3)][_0x11a5ff(0x154)](0x2)+_0x11a5ff(0x24c)+_0x388793[_0x11a5ff(0x232)][_0x11a5ff(0x154)](0x1),_0x32c84a[_0x11a5ff(0x209)][_0x11a5ff(0x184)]=_0x36c77f?_0x11a5ff(0x13c):_0x11a5ff(0x1c4),_0x32c84a[_0x11a5ff(0x209)][_0x11a5ff(0x22c)]=_0x36c77f?_0x11a5ff(0x21d):_0x11a5ff(0x1d5),_0x32c84a['style'][_0x11a5ff(0x1d3)]=_0x36c77f?'rgba(0,230,118,0.06)':_0x11a5ff(0x18c);}}function toggleBP(){const _0x29cc72=a0_0x3d6f,_0x38931e=document[_0x29cc72(0x1e0)]('buyType')[_0x29cc72(0x215)];document['getElementById'](_0x29cc72(0x1c1))[_0x29cc72(0x209)][_0x29cc72(0x1fc)]=_0x38931e!=='market'?_0x29cc72(0x1f0):_0x29cc72(0x148);if(_0x38931e!=='market')document[_0x29cc72(0x1e0)](_0x29cc72(0x1ea))[_0x29cc72(0x215)]=S[_0x29cc72(0x1e3)][_0x29cc72(0x154)](0x2);}function toggleSP(){const _0x96845d=a0_0x3d6f,_0x2bfe85=document[_0x96845d(0x1e0)](_0x96845d(0x246))[_0x96845d(0x215)];document[_0x96845d(0x1e0)](_0x96845d(0x158))[_0x96845d(0x209)]['display']=_0x2bfe85!=='market'?_0x96845d(0x1f0):'none';if(_0x2bfe85!==_0x96845d(0x220))document[_0x96845d(0x1e0)](_0x96845d(0x1ff))[_0x96845d(0x215)]=S['price'][_0x96845d(0x154)](0x2);}function log(_0x2ce2bd,_0x472a1f){const _0x3860df=a0_0x3d6f;_0x472a1f=_0x472a1f||_0x3860df(0x221);const _0x4e56b5=document[_0x3860df(0x1e0)](_0x3860df(0x1b9)),_0x40b1a4=document[_0x3860df(0x14c)](_0x3860df(0x22d));_0x40b1a4[_0x3860df(0x19e)]=_0x3860df(0x255)+_0x472a1f;const _0x2981a9=new Date()[_0x3860df(0x145)]('th-TH');_0x40b1a4['textContent']='['+_0x2981a9+']\x20'+_0x2ce2bd,_0x4e56b5[_0x3860df(0x1bc)](_0x40b1a4,_0x4e56b5[_0x3860df(0x1a1)]);}function toast(_0x26617f){const _0x4800af=a0_0x3d6f,_0x5c18b3=document[_0x4800af(0x1e0)](_0x4800af(0x248));_0x5c18b3[_0x4800af(0x1fb)]=_0x26617f,_0x5c18b3[_0x4800af(0x23f)]['add'](_0x4800af(0x27b)),setTimeout(()=>_0x5c18b3[_0x4800af(0x23f)]['remove'](_0x4800af(0x27b)),0x9c4);}function doBuy(){const _0x3d82a7=a0_0x3d6f,_0x3bd783=document[_0x3d82a7(0x1e0)](_0x3d82a7(0x166))[_0x3d82a7(0x215)],_0x141623=parseFloat(document[_0x3d82a7(0x1e0)]('buyVol')['value'])||0x0,_0x2cd0fe=parseFloat(document[_0x3d82a7(0x1e0)]('buyTP')[_0x3d82a7(0x215)])||0x0,_0x91a5bb=parseFloat(document[_0x3d82a7(0x1e0)](_0x3d82a7(0x17c))[_0x3d82a7(0x215)])||0x0;if(_0x141623<=0x0){toast(_0x3d82a7(0x1a4));return;}if(_0x3bd783==='market')S[_0x3d82a7(0x1f8)]['push']({'id':S[_0x3d82a7(0x1cd)]++,'vol':_0x141623,'rem':_0x141623}),S[_0x3d82a7(0x25f)]+=_0x141623,log(_0x3d82a7(0x1dc)+_0x141623+_0x3d82a7(0x249),'up'),runMatch();else{const _0x358198=parseFloat(document[_0x3d82a7(0x1e0)]('buyPx')['value'])||0x0;if(_0x358198<=0x0){toast(_0x3d82a7(0x257));return;}if(_0x3bd783===_0x3d82a7(0x1c2)&&_0x358198>=S[_0x3d82a7(0x1e3)]){toast('⚠\x20BUY\x20LIMIT\x20must\x20be\x20below\x20current\x20price');return;}if(_0x3bd783==='stop'&&_0x358198<=S[_0x3d82a7(0x1e3)]){toast(_0x3d82a7(0x13d));return;}S[_0x3d82a7(0x275)][_0x3d82a7(0x196)]({'id':S[_0x3d82a7(0x1cd)]++,'side':_0x3d82a7(0x147),'type':_0x3bd783,'price':_0x358198,'vol':_0x141623,'rem':_0x141623}),addBook(_0x3d82a7(0x147),_0x358198,_0x141623),log(_0x3d82a7(0x25c)+_0x3bd783[_0x3d82a7(0x247)]()+_0x3d82a7(0x182)+_0x141623+_0x3d82a7(0x15f)+_0x358198['toFixed'](0x2),_0x3d82a7(0x275)),checkTrig();}if(_0x2cd0fe>0x0){if(_0x2cd0fe<=S['price']){toast(_0x3d82a7(0x278));return;}const _0x354fa8=S[_0x3d82a7(0x1cd)]++;S[_0x3d82a7(0x275)][_0x3d82a7(0x196)]({'id':_0x354fa8,'side':_0x3d82a7(0x238),'type':_0x3d82a7(0x1c2),'price':_0x2cd0fe,'vol':_0x141623,'rem':_0x141623,'tag':'TP'}),addBook(_0x3d82a7(0x238),_0x2cd0fe,_0x141623),log(_0x3d82a7(0x17b)+_0x141623+_0x3d82a7(0x15f)+_0x2cd0fe['toFixed'](0x2),_0x3d82a7(0x221));}if(_0x91a5bb>0x0){if(_0x91a5bb>=S['price']){toast(_0x3d82a7(0x216));return;}const _0x172737=S['uid']++;S[_0x3d82a7(0x275)][_0x3d82a7(0x196)]({'id':_0x172737,'side':_0x3d82a7(0x238),'type':'stop','price':_0x91a5bb,'vol':_0x141623,'rem':_0x141623,'tag':'SL'}),log('SL\x20SET\x20—\x20Sell\x20Stop\x20'+_0x141623+_0x3d82a7(0x15f)+_0x91a5bb[_0x3d82a7(0x154)](0x2),_0x3d82a7(0x221));}ui();}function doSell(){const _0x1bd7eb=a0_0x3d6f,_0x436f80=document[_0x1bd7eb(0x1e0)]('sellType')[_0x1bd7eb(0x215)],_0x343fbc=parseFloat(document[_0x1bd7eb(0x1e0)](_0x1bd7eb(0x207))[_0x1bd7eb(0x215)])||0x0,_0x4b7400=parseFloat(document['getElementById']('sellTP')['value'])||0x0,_0x54919e=parseFloat(document[_0x1bd7eb(0x1e0)](_0x1bd7eb(0x140))[_0x1bd7eb(0x215)])||0x0;if(_0x343fbc<=0x0){toast(_0x1bd7eb(0x1a4));return;}if(_0x436f80==='market')S[_0x1bd7eb(0x1de)][_0x1bd7eb(0x196)]({'id':S[_0x1bd7eb(0x1cd)]++,'vol':_0x343fbc,'rem':_0x343fbc}),S['sellVol']+=_0x343fbc,log('SELL\x20MARKET\x20—\x20'+_0x343fbc+'\x20lot\x20@\x20MARKET','dn'),runMatch();else{const _0x291d11=parseFloat(document['getElementById']('sellPx')['value'])||0x0;if(_0x291d11<=0x0){toast('⚠\x20INVALID\x20PRICE\x20—\x20must\x20be\x20greater\x20than\x200');return;}if(_0x436f80===_0x1bd7eb(0x1c2)&&_0x291d11<=S['price']){toast(_0x1bd7eb(0x17d));return;}if(_0x436f80===_0x1bd7eb(0x20b)&&_0x291d11>=S[_0x1bd7eb(0x1e3)]){toast('⚠\x20SELL\x20STOP\x20must\x20be\x20below\x20current\x20price');return;}S[_0x1bd7eb(0x275)][_0x1bd7eb(0x196)]({'id':S[_0x1bd7eb(0x1cd)]++,'side':_0x1bd7eb(0x238),'type':_0x436f80,'price':_0x291d11,'vol':_0x343fbc,'rem':_0x343fbc}),addBook(_0x1bd7eb(0x238),_0x291d11,_0x343fbc),log(_0x1bd7eb(0x226)+_0x436f80[_0x1bd7eb(0x247)]()+_0x1bd7eb(0x182)+_0x343fbc+'\x20lot\x20@\x20'+_0x291d11['toFixed'](0x2),_0x1bd7eb(0x275)),checkTrig();}if(_0x4b7400>0x0){if(_0x4b7400>=S[_0x1bd7eb(0x1e3)]){toast(_0x1bd7eb(0x26a));return;}S[_0x1bd7eb(0x275)][_0x1bd7eb(0x196)]({'id':S[_0x1bd7eb(0x1cd)]++,'side':_0x1bd7eb(0x147),'type':_0x1bd7eb(0x1c2),'price':_0x4b7400,'vol':_0x343fbc,'rem':_0x343fbc,'tag':'TP'}),addBook(_0x1bd7eb(0x147),_0x4b7400,_0x343fbc),log(_0x1bd7eb(0x15a)+_0x343fbc+_0x1bd7eb(0x15f)+_0x4b7400[_0x1bd7eb(0x154)](0x2),_0x1bd7eb(0x221));}if(_0x54919e>0x0){if(_0x54919e<=S[_0x1bd7eb(0x1e3)]){toast(_0x1bd7eb(0x230));return;}S[_0x1bd7eb(0x275)][_0x1bd7eb(0x196)]({'id':S[_0x1bd7eb(0x1cd)]++,'side':'buy','type':'stop','price':_0x54919e,'vol':_0x343fbc,'rem':_0x343fbc,'tag':'SL'}),log('SL\x20SET\x20—\x20Buy\x20Stop\x20'+_0x343fbc+_0x1bd7eb(0x15f)+_0x54919e['toFixed'](0x2),_0x1bd7eb(0x221));}ui();}function doBuyMine(){const _0x2025c3=a0_0x3d6f,_0x2952ee=document[_0x2025c3(0x1e0)](_0x2025c3(0x166))[_0x2025c3(0x215)],_0x53cd8a=parseFloat(document['getElementById']('buyVol')['value'])||0x0,_0x423ac9=parseFloat(document[_0x2025c3(0x1e0)]('buyTP')['value'])||0x0,_0x50706e=parseFloat(document[_0x2025c3(0x1e0)](_0x2025c3(0x17c))[_0x2025c3(0x215)])||0x0;if(_0x53cd8a<=0x0){toast(_0x2025c3(0x1a4));return;}let _0x2ef13b=S[_0x2025c3(0x1e3)];if(_0x2952ee===_0x2025c3(0x220)){if(_0x423ac9>0x0&&_0x423ac9<=S[_0x2025c3(0x1e3)]){toast(_0x2025c3(0x278));return;}if(_0x50706e>0x0&&_0x50706e>=S[_0x2025c3(0x1e3)]){toast(_0x2025c3(0x216));return;}S[_0x2025c3(0x1f8)][_0x2025c3(0x196)]({'id':S[_0x2025c3(0x1cd)]++,'vol':_0x53cd8a,'rem':_0x53cd8a}),S[_0x2025c3(0x25f)]+=_0x53cd8a,log(_0x2025c3(0x22a)+_0x53cd8a+_0x2025c3(0x249),'up'),runMatch(),_0x2ef13b=S[_0x2025c3(0x1e3)],_0x423ac9>0x0&&(S[_0x2025c3(0x275)][_0x2025c3(0x196)]({'id':S['uid']++,'side':'sell','type':_0x2025c3(0x1c2),'price':_0x423ac9,'vol':_0x53cd8a,'rem':_0x53cd8a,'tag':'TP'}),addBook('sell',_0x423ac9,_0x53cd8a),log(_0x2025c3(0x17b)+_0x53cd8a+_0x2025c3(0x15f)+_0x423ac9[_0x2025c3(0x154)](0x2),_0x2025c3(0x221))),_0x50706e>0x0&&(S[_0x2025c3(0x275)][_0x2025c3(0x196)]({'id':S[_0x2025c3(0x1cd)]++,'side':_0x2025c3(0x238),'type':_0x2025c3(0x20b),'price':_0x50706e,'vol':_0x53cd8a,'rem':_0x53cd8a,'tag':'SL'}),log(_0x2025c3(0x21b)+_0x53cd8a+'\x20lot\x20@\x20'+_0x50706e[_0x2025c3(0x154)](0x2),'info')),S[_0x2025c3(0x188)][_0x2025c3(0x196)]({'id':S[_0x2025c3(0x1cd)]++,'side':_0x2025c3(0x147),'type':_0x2952ee,'entry':_0x2ef13b,'tp':_0x423ac9||null,'sl':_0x50706e||null,'triggered':!![],'pendingId':null});}else{const _0x326783=parseFloat(document['getElementById'](_0x2025c3(0x1ea))['value'])||0x0;if(_0x326783<=0x0){toast(_0x2025c3(0x257));return;}if(_0x2952ee===_0x2025c3(0x1c2)&&_0x326783>=S['price']){toast('⚠\x20BUY\x20LIMIT\x20must\x20be\x20below\x20current\x20price');return;}if(_0x2952ee===_0x2025c3(0x20b)&&_0x326783<=S[_0x2025c3(0x1e3)]){toast('⚠\x20BUY\x20STOP\x20must\x20be\x20above\x20current\x20price');return;}if(_0x423ac9>0x0&&_0x423ac9<=S['price']){toast(_0x2025c3(0x278));return;}if(_0x50706e>0x0&&_0x50706e>=S[_0x2025c3(0x1e3)]){toast('⚠\x20BUY\x20SL\x20must\x20be\x20below\x20current\x20price');return;}_0x2ef13b=_0x326783;const _0xd4f065=S[_0x2025c3(0x1cd)]++;S['pending'][_0x2025c3(0x196)]({'id':_0xd4f065,'side':_0x2025c3(0x147),'type':_0x2952ee,'price':_0x326783,'vol':_0x53cd8a,'rem':_0x53cd8a}),addBook('buy',_0x326783,_0x53cd8a),log(_0x2025c3(0x18a)+_0x2952ee[_0x2025c3(0x247)]()+_0x2025c3(0x182)+_0x53cd8a+'\x20lot\x20@\x20'+_0x326783[_0x2025c3(0x154)](0x2),_0x2025c3(0x275)),checkTrig(),_0x423ac9>0x0&&(S['pending'][_0x2025c3(0x196)]({'id':S[_0x2025c3(0x1cd)]++,'side':_0x2025c3(0x238),'type':_0x2025c3(0x1c2),'price':_0x423ac9,'vol':_0x53cd8a,'rem':_0x53cd8a,'tag':'TP'}),addBook(_0x2025c3(0x238),_0x423ac9,_0x53cd8a),log(_0x2025c3(0x17b)+_0x53cd8a+_0x2025c3(0x15f)+_0x423ac9[_0x2025c3(0x154)](0x2),_0x2025c3(0x221))),_0x50706e>0x0&&(S[_0x2025c3(0x275)][_0x2025c3(0x196)]({'id':S[_0x2025c3(0x1cd)]++,'side':_0x2025c3(0x238),'type':_0x2025c3(0x20b),'price':_0x50706e,'vol':_0x53cd8a,'rem':_0x53cd8a,'tag':'SL'}),log('SL\x20SET\x20—\x20Sell\x20Stop\x20'+_0x53cd8a+_0x2025c3(0x15f)+_0x50706e[_0x2025c3(0x154)](0x2),'info')),S[_0x2025c3(0x188)][_0x2025c3(0x196)]({'id':S['uid']++,'side':'buy','type':_0x2952ee,'entry':_0x2ef13b,'tp':_0x423ac9||null,'sl':_0x50706e||null,'triggered':![],'pendingId':_0xd4f065});}ui();}function doSellMine(){const _0x3e45fa=a0_0x3d6f,_0x379107=document[_0x3e45fa(0x1e0)](_0x3e45fa(0x246))['value'],_0x1f641f=parseFloat(document[_0x3e45fa(0x1e0)](_0x3e45fa(0x207))[_0x3e45fa(0x215)])||0x0,_0x57d1a9=parseFloat(document['getElementById'](_0x3e45fa(0x14a))['value'])||0x0,_0x243da0=parseFloat(document['getElementById'](_0x3e45fa(0x140))[_0x3e45fa(0x215)])||0x0;if(_0x1f641f<=0x0){toast(_0x3e45fa(0x1a4));return;}let _0x4faae1=S[_0x3e45fa(0x1e3)];if(_0x379107==='market'){if(_0x57d1a9>0x0&&_0x57d1a9>=S[_0x3e45fa(0x1e3)]){toast(_0x3e45fa(0x26a));return;}if(_0x243da0>0x0&&_0x243da0<=S[_0x3e45fa(0x1e3)]){toast(_0x3e45fa(0x230));return;}S[_0x3e45fa(0x1de)][_0x3e45fa(0x196)]({'id':S[_0x3e45fa(0x1cd)]++,'vol':_0x1f641f,'rem':_0x1f641f}),S[_0x3e45fa(0x207)]+=_0x1f641f,log(_0x3e45fa(0x1fa)+_0x1f641f+_0x3e45fa(0x249),'dn'),runMatch(),_0x4faae1=S[_0x3e45fa(0x1e3)],_0x57d1a9>0x0&&(S['pending'][_0x3e45fa(0x196)]({'id':S[_0x3e45fa(0x1cd)]++,'side':_0x3e45fa(0x147),'type':'limit','price':_0x57d1a9,'vol':_0x1f641f,'rem':_0x1f641f,'tag':'TP'}),addBook(_0x3e45fa(0x147),_0x57d1a9,_0x1f641f),log(_0x3e45fa(0x15a)+_0x1f641f+_0x3e45fa(0x15f)+_0x57d1a9[_0x3e45fa(0x154)](0x2),_0x3e45fa(0x221))),_0x243da0>0x0&&(S[_0x3e45fa(0x275)][_0x3e45fa(0x196)]({'id':S[_0x3e45fa(0x1cd)]++,'side':_0x3e45fa(0x147),'type':'stop','price':_0x243da0,'vol':_0x1f641f,'rem':_0x1f641f,'tag':'SL'}),log('SL\x20SET\x20—\x20Buy\x20Stop\x20'+_0x1f641f+_0x3e45fa(0x15f)+_0x243da0[_0x3e45fa(0x154)](0x2),'info')),S[_0x3e45fa(0x188)]['push']({'id':S[_0x3e45fa(0x1cd)]++,'side':'sell','type':_0x379107,'entry':_0x4faae1,'tp':_0x57d1a9||null,'sl':_0x243da0||null,'triggered':!![],'pendingId':null});}else{const _0x45983b=parseFloat(document[_0x3e45fa(0x1e0)](_0x3e45fa(0x1ff))[_0x3e45fa(0x215)])||0x0;if(_0x45983b<=0x0){toast(_0x3e45fa(0x257));return;}if(_0x379107===_0x3e45fa(0x1c2)&&_0x45983b<=S[_0x3e45fa(0x1e3)]){toast(_0x3e45fa(0x17d));return;}if(_0x379107===_0x3e45fa(0x20b)&&_0x45983b>=S[_0x3e45fa(0x1e3)]){toast(_0x3e45fa(0x20c));return;}if(_0x57d1a9>0x0&&_0x57d1a9>=S[_0x3e45fa(0x1e3)]){toast(_0x3e45fa(0x26a));return;}if(_0x243da0>0x0&&_0x243da0<=S['price']){toast(_0x3e45fa(0x230));return;}_0x4faae1=_0x45983b;const _0x5abf74=S[_0x3e45fa(0x1cd)]++;S['pending'][_0x3e45fa(0x196)]({'id':_0x5abf74,'side':'sell','type':_0x379107,'price':_0x45983b,'vol':_0x1f641f,'rem':_0x1f641f}),addBook('sell',_0x45983b,_0x1f641f),log(_0x3e45fa(0x146)+_0x379107[_0x3e45fa(0x247)]()+_0x3e45fa(0x182)+_0x1f641f+_0x3e45fa(0x15f)+_0x45983b[_0x3e45fa(0x154)](0x2),_0x3e45fa(0x275)),checkTrig(),_0x57d1a9>0x0&&(S[_0x3e45fa(0x275)][_0x3e45fa(0x196)]({'id':S['uid']++,'side':'buy','type':_0x3e45fa(0x1c2),'price':_0x57d1a9,'vol':_0x1f641f,'rem':_0x1f641f,'tag':'TP'}),addBook(_0x3e45fa(0x147),_0x57d1a9,_0x1f641f),log(_0x3e45fa(0x15a)+_0x1f641f+_0x3e45fa(0x15f)+_0x57d1a9[_0x3e45fa(0x154)](0x2),_0x3e45fa(0x221))),_0x243da0>0x0&&(S[_0x3e45fa(0x275)][_0x3e45fa(0x196)]({'id':S['uid']++,'side':_0x3e45fa(0x147),'type':_0x3e45fa(0x20b),'price':_0x243da0,'vol':_0x1f641f,'rem':_0x1f641f,'tag':'SL'}),log('SL\x20SET\x20—\x20Buy\x20Stop\x20'+_0x1f641f+_0x3e45fa(0x15f)+_0x243da0['toFixed'](0x2),_0x3e45fa(0x221))),S[_0x3e45fa(0x188)][_0x3e45fa(0x196)]({'id':S[_0x3e45fa(0x1cd)]++,'side':'sell','type':_0x379107,'entry':_0x4faae1,'tp':_0x57d1a9||null,'sl':_0x243da0||null,'triggered':![],'pendingId':_0x5abf74});}ui();}function addBook(_0x490c88,_0x2b9da7,_0x187b78){const _0x2290f5=a0_0x3d6f,_0x3e353f=_0x490c88===_0x2290f5(0x147)?S[_0x2290f5(0x168)]:S[_0x2290f5(0x1d2)],_0x17c8be=_0x2b9da7[_0x2290f5(0x154)](0x2);if(!_0x3e353f[_0x17c8be])_0x3e353f[_0x17c8be]={'price':_0x2b9da7,'vol':0x0};_0x3e353f[_0x17c8be][_0x2290f5(0x232)]=parseFloat((_0x3e353f[_0x17c8be][_0x2290f5(0x232)]+_0x187b78)['toFixed'](0x2));}function remBook(_0x393e87,_0x33e0d3,_0x1b05fb){const _0x59cc10=a0_0x3d6f,_0x3b0ab5=_0x393e87===_0x59cc10(0x147)?S['limitBuys']:S['limitSells'],_0x345516=_0x33e0d3[_0x59cc10(0x154)](0x2);if(_0x3b0ab5[_0x345516]){_0x3b0ab5[_0x345516][_0x59cc10(0x232)]=parseFloat((_0x3b0ab5[_0x345516][_0x59cc10(0x232)]-_0x1b05fb)[_0x59cc10(0x154)](0x2));if(_0x3b0ab5[_0x345516][_0x59cc10(0x232)]<=0.001)delete _0x3b0ab5[_0x345516];}}function recordExec(_0x44b8b7,_0x30dc7e,_0x59dce6){const _0x69bdee=a0_0x3d6f,_0x311ec0=_0x44b8b7[_0x69bdee(0x154)](0x2);if(!S[_0x69bdee(0x254)][_0x311ec0])S['executedVol'][_0x311ec0]={'buy':0x0,'sell':0x0};S[_0x69bdee(0x254)][_0x311ec0][_0x59dce6]+=_0x30dc7e;}function runMatch(){const _0x185584=a0_0x3d6f;while(S[_0x185584(0x1f8)][_0x185584(0x160)]>0x0&&S[_0x185584(0x1de)][_0x185584(0x160)]>0x0){const _0x223c93=S[_0x185584(0x1f8)][0x0],_0x272796=S[_0x185584(0x1de)][0x0],_0x321911=Math[_0x185584(0x211)](_0x223c93[_0x185584(0x20d)],_0x272796[_0x185584(0x20d)]);S[_0x185584(0x1e1)]++,_0x223c93['rem']-=_0x321911,_0x272796['rem']-=_0x321911,recordExec(S[_0x185584(0x1e3)],_0x321911,_0x185584(0x147)),recordExec(S[_0x185584(0x1e3)],_0x321911,'sell'),tickCandle(S[_0x185584(0x1e3)],_0x321911,_0x185584(0x21e)),log(_0x185584(0x155)+_0x321911+_0x185584(0x15f)+S[_0x185584(0x1e3)][_0x185584(0x154)](0x2),_0x185584(0x280));if(_0x223c93[_0x185584(0x20d)]<=0.001)S[_0x185584(0x1f8)][_0x185584(0x13f)]();if(_0x272796[_0x185584(0x20d)]<=0.001)S[_0x185584(0x1de)]['shift']();}let _0xc949d2=0x0;while(S['buyQ']['length']>0x0&&_0xc949d2<0x64){_0xc949d2++;const _0x5ace31=getSortedAsks();if(_0x5ace31[_0x185584(0x160)]===0x0){log(_0x185584(0x1aa),_0x185584(0x221));break;}const _0x25cb12=_0x5ace31[0x0],_0x2eb8f5=S[_0x185584(0x1f8)][0x0],_0x378881=Math[_0x185584(0x211)](_0x2eb8f5[_0x185584(0x20d)],_0x25cb12[_0x185584(0x232)]);_0x2eb8f5['rem']=parseFloat((_0x2eb8f5[_0x185584(0x20d)]-_0x378881)[_0x185584(0x154)](0x2)),_0x25cb12[_0x185584(0x232)]=parseFloat((_0x25cb12[_0x185584(0x232)]-_0x378881)['toFixed'](0x2)),S[_0x185584(0x1e1)]++,S['prevPrice']=S[_0x185584(0x1e3)],S[_0x185584(0x1e3)]=_0x25cb12['price'],recordExec(S[_0x185584(0x1e3)],_0x378881,_0x185584(0x147)),tickCandle(S[_0x185584(0x1e3)],_0x378881,_0x185584(0x147)),log('✦\x20MATCH\x20(Buy×SellLimit)\x20—\x20'+_0x378881+'\x20lot\x20@\x20'+_0x25cb12[_0x185584(0x1e3)]['toFixed'](0x2),_0x185584(0x280));if(_0x25cb12[_0x185584(0x232)]<=0.001)delete S[_0x185584(0x1d2)][_0x25cb12['price'][_0x185584(0x154)](0x2)];else S[_0x185584(0x1d2)][_0x25cb12[_0x185584(0x1e3)]['toFixed'](0x2)][_0x185584(0x232)]=_0x25cb12[_0x185584(0x232)];if(_0x2eb8f5[_0x185584(0x20d)]<=0.001){S['buyQ'][_0x185584(0x13f)]();break;}}if(_0xc949d2>0x0)replenishBook();_0xc949d2=0x0;while(S[_0x185584(0x1de)][_0x185584(0x160)]>0x0&&_0xc949d2<0x64){_0xc949d2++;const _0x2b72c8=getSortedBids();if(_0x2b72c8['length']===0x0){log(_0x185584(0x1ba),_0x185584(0x221));break;}const _0x37cfd6=_0x2b72c8[0x0],_0x342ded=S[_0x185584(0x1de)][0x0],_0x115d28=Math[_0x185584(0x211)](_0x342ded[_0x185584(0x20d)],_0x37cfd6['vol']);_0x342ded['rem']=parseFloat((_0x342ded['rem']-_0x115d28)[_0x185584(0x154)](0x2)),_0x37cfd6[_0x185584(0x232)]=parseFloat((_0x37cfd6[_0x185584(0x232)]-_0x115d28)[_0x185584(0x154)](0x2)),S[_0x185584(0x1e1)]++,S['prevPrice']=S[_0x185584(0x1e3)],S[_0x185584(0x1e3)]=_0x37cfd6[_0x185584(0x1e3)],recordExec(S['price'],_0x115d28,_0x185584(0x238)),tickCandle(S['price'],_0x115d28,_0x185584(0x238)),log(_0x185584(0x1a2)+_0x115d28+'\x20lot\x20@\x20'+_0x37cfd6['price']['toFixed'](0x2),_0x185584(0x280));if(_0x37cfd6['vol']<=0.001)delete S[_0x185584(0x168)][_0x37cfd6[_0x185584(0x1e3)][_0x185584(0x154)](0x2)];else S[_0x185584(0x168)][_0x37cfd6[_0x185584(0x1e3)][_0x185584(0x154)](0x2)][_0x185584(0x232)]=_0x37cfd6['vol'];if(_0x342ded[_0x185584(0x20d)]<=0.001){S[_0x185584(0x1de)][_0x185584(0x13f)]();break;}}if(_0xc949d2>0x0)replenishBook();checkTrig();}function checkTrig(){const _0x37187f=a0_0x3d6f;let _0x39c532=![];S['pending']=S[_0x37187f(0x275)][_0x37187f(0x268)](_0x346342=>{const _0x392fcd=_0x37187f;let _0x197420=![];if(_0x346342[_0x392fcd(0x1b6)]===_0x392fcd(0x20b)){if(_0x346342[_0x392fcd(0x192)]===_0x392fcd(0x147)&&S[_0x392fcd(0x1e3)]>=_0x346342['price'])_0x197420=!![];if(_0x346342[_0x392fcd(0x192)]==='sell'&&S['price']<=_0x346342[_0x392fcd(0x1e3)])_0x197420=!![];}else{if(_0x346342[_0x392fcd(0x1b6)]===_0x392fcd(0x1c2)){if(_0x346342['side']==='buy'&&S[_0x392fcd(0x1e3)]<=_0x346342['price'])_0x197420=!![];if(_0x346342['side']===_0x392fcd(0x238)&&S[_0x392fcd(0x1e3)]>=_0x346342['price'])_0x197420=!![];}}if(_0x197420){const _0x16b923=_0x346342[_0x392fcd(0x27c)]?_0x346342[_0x392fcd(0x27c)]:_0x346342[_0x392fcd(0x192)][_0x392fcd(0x247)]()+'\x20'+_0x346342[_0x392fcd(0x1b6)]['toUpperCase'](),_0x3c8d27=_0x346342[_0x392fcd(0x27c)]==='TP'?'matched':_0x346342['tag']==='SL'?'dn':_0x392fcd(0x280);log('⚡\x20'+_0x16b923+_0x392fcd(0x210)+_0x346342[_0x392fcd(0x192)][_0x392fcd(0x247)]()+'\x20'+_0x346342[_0x392fcd(0x1b6)][_0x392fcd(0x247)]()+_0x392fcd(0x1cf)+_0x346342[_0x392fcd(0x1e3)][_0x392fcd(0x154)](0x2)+'\x20→\x20MARKET',_0x3c8d27),remBook(_0x346342[_0x392fcd(0x192)],_0x346342[_0x392fcd(0x1e3)],_0x346342['vol']);_0x346342[_0x392fcd(0x192)]===_0x392fcd(0x147)?(S['buyQ']['push']({'id':_0x346342['id'],'vol':_0x346342[_0x392fcd(0x232)],'rem':_0x346342[_0x392fcd(0x20d)]}),S[_0x392fcd(0x25f)]+=_0x346342['vol']):(S[_0x392fcd(0x1de)][_0x392fcd(0x196)]({'id':_0x346342['id'],'vol':_0x346342[_0x392fcd(0x232)],'rem':_0x346342[_0x392fcd(0x20d)]}),S[_0x392fcd(0x207)]+=_0x346342['vol']);const _0x1b96fc=S[_0x392fcd(0x188)][_0x392fcd(0x1e9)](_0x4aa380=>_0x4aa380[_0x392fcd(0x18b)]===_0x346342['id']);if(_0x1b96fc)_0x1b96fc[_0x392fcd(0x244)]=!![];return(_0x346342[_0x392fcd(0x27c)]==='TP'||_0x346342['tag']==='SL')&&(S[_0x392fcd(0x188)]=S[_0x392fcd(0x188)][_0x392fcd(0x268)](_0x29b587=>{const _0x481abc=_0x392fcd;if(_0x346342[_0x481abc(0x27c)]==='TP')return!(_0x29b587['tp']&&Math['abs'](_0x29b587['tp']-_0x346342['price'])<0.001);if(_0x346342[_0x481abc(0x27c)]==='SL')return!(_0x29b587['sl']&&Math['abs'](_0x29b587['sl']-_0x346342[_0x481abc(0x1e3)])<0.001);return!![];})),_0x39c532=!![],![];}return!![];});if(_0x39c532)runMatch();}function cancelOrder(_0x34029c){const _0x1d7254=a0_0x3d6f,_0x3c0058=S['pending']['findIndex'](_0x34ddde=>_0x34ddde['id']===_0x34029c);if(_0x3c0058===-0x1)return;const _0x3c9b35=S[_0x1d7254(0x275)][_0x3c0058];S[_0x1d7254(0x275)]['splice'](_0x3c0058,0x1),remBook(_0x3c9b35['side'],_0x3c9b35[_0x1d7254(0x1e3)],_0x3c9b35[_0x1d7254(0x232)]),log(_0x1d7254(0x20f)+(_0x3c9b35[_0x1d7254(0x27c)]||'')+'\x20'+_0x3c9b35[_0x1d7254(0x192)]['toUpperCase']()+'\x20'+_0x3c9b35['type'][_0x1d7254(0x247)]()+_0x1d7254(0x1cf)+_0x3c9b35['price'][_0x1d7254(0x154)](0x2),_0x1d7254(0x275));if(_0x3c9b35['tag']==='TP'||_0x3c9b35['tag']==='SL'){const _0x34e06f=_0x3c9b35[_0x1d7254(0x27c)]==='TP'?'SL':'TP',_0x113837=S[_0x1d7254(0x275)][_0x1d7254(0x1fe)](_0x1de01e=>_0x1de01e[_0x1d7254(0x27c)]===_0x34e06f&&_0x1de01e[_0x1d7254(0x232)]===_0x3c9b35['vol']);if(_0x113837!==-0x1){const _0x26dd91=S[_0x1d7254(0x275)][_0x113837];S[_0x1d7254(0x275)][_0x1d7254(0x163)](_0x113837,0x1),remBook(_0x26dd91[_0x1d7254(0x192)],_0x26dd91[_0x1d7254(0x1e3)],_0x26dd91[_0x1d7254(0x232)]),log(_0x1d7254(0x176)+_0x34e06f+_0x1d7254(0x1cf)+_0x26dd91[_0x1d7254(0x1e3)]['toFixed'](0x2),_0x1d7254(0x275));}}ui();}function getSortedAsks(){const _0x4c79d5=a0_0x3d6f;return Object[_0x4c79d5(0x1bd)](S[_0x4c79d5(0x1d2)])[_0x4c79d5(0x1f4)]((_0x1d98ae,_0x2ea8ea)=>_0x1d98ae[_0x4c79d5(0x1e3)]-_0x2ea8ea[_0x4c79d5(0x1e3)]);}function getSortedBids(){const _0x10a6b5=a0_0x3d6f;return Object[_0x10a6b5(0x1bd)](S['limitBuys'])['sort']((_0x24814c,_0x2d94e8)=>_0x2d94e8[_0x10a6b5(0x1e3)]-_0x24814c[_0x10a6b5(0x1e3)]);}function replenishBook(){const _0x1a1ed0=a0_0x3d6f,_0x45e527=S[_0x1a1ed0(0x1e3)];Object[_0x1a1ed0(0x213)](S[_0x1a1ed0(0x1d2)])[_0x1a1ed0(0x179)](function(_0x6d69b1){const _0x154a0a=_0x1a1ed0;var _0x906cfe=parseFloat(_0x6d69b1);if(_0x906cfe<_0x45e527)delete S[_0x154a0a(0x1d2)][_0x6d69b1];}),Object['keys'](S[_0x1a1ed0(0x168)])[_0x1a1ed0(0x179)](function(_0x1c8e85){const _0xe0ce2d=_0x1a1ed0;var _0x54c931=parseFloat(_0x1c8e85);if(_0x54c931>_0x45e527)delete S[_0xe0ce2d(0x168)][_0x1c8e85];});for(var _0x5ce4d2=0x1;_0x5ce4d2<=0xa;_0x5ce4d2++){var _0x98c530=parseFloat((_0x45e527+_0x5ce4d2*S['TICK'])['toFixed'](0x2)),_0xc69ea0=parseFloat((_0x45e527-_0x5ce4d2*S[_0x1a1ed0(0x263)])[_0x1a1ed0(0x154)](0x2));(!S[_0x1a1ed0(0x1d2)][_0x98c530[_0x1a1ed0(0x154)](0x2)]||S[_0x1a1ed0(0x1d2)][_0x98c530[_0x1a1ed0(0x154)](0x2)][_0x1a1ed0(0x232)]<0.5)&&(S[_0x1a1ed0(0x1d2)][_0x98c530[_0x1a1ed0(0x154)](0x2)]={'price':_0x98c530,'vol':parseFloat((Math[_0x1a1ed0(0x1a9)]()*0x3+0.5)[_0x1a1ed0(0x154)](0x1))}),(!S['limitBuys'][_0xc69ea0['toFixed'](0x2)]||S[_0x1a1ed0(0x168)][_0xc69ea0['toFixed'](0x2)]['vol']<0.5)&&(S[_0x1a1ed0(0x168)][_0xc69ea0[_0x1a1ed0(0x154)](0x2)]={'price':_0xc69ea0,'vol':parseFloat((Math[_0x1a1ed0(0x1a9)]()*0x3+0.5)[_0x1a1ed0(0x154)](0x1))});}var _0x306224=S[_0x1a1ed0(0x263)]*0xf;Object[_0x1a1ed0(0x213)](S[_0x1a1ed0(0x1d2)])[_0x1a1ed0(0x179)](function(_0x248c17){const _0x1bf7d1=_0x1a1ed0;if(Math[_0x1bf7d1(0x282)](parseFloat(_0x248c17)-_0x45e527)>_0x306224)delete S['limitSells'][_0x248c17];}),Object[_0x1a1ed0(0x213)](S[_0x1a1ed0(0x168)])[_0x1a1ed0(0x179)](function(_0x52f13b){const _0x52556a=_0x1a1ed0;if(Math[_0x52556a(0x282)](parseFloat(_0x52f13b)-_0x45e527)>_0x306224)delete S[_0x52556a(0x168)][_0x52f13b];});}function updateHVN(){const _0x4a26a6=a0_0x3d6f,_0x597a48=[...getSortedAsks()[_0x4a26a6(0x277)](_0x4f5ca8=>({'price':_0x4f5ca8[_0x4a26a6(0x1e3)],'vol':_0x4f5ca8[_0x4a26a6(0x232)],'side':_0x4a26a6(0x238)})),...getSortedBids()[_0x4a26a6(0x277)](_0x2b7ee9=>({'price':_0x2b7ee9[_0x4a26a6(0x1e3)],'vol':_0x2b7ee9['vol'],'side':_0x4a26a6(0x147)}))];_0x597a48[_0x4a26a6(0x1f4)]((_0x5cbc2a,_0x3c1f1d)=>_0x3c1f1d[_0x4a26a6(0x232)]-_0x5cbc2a[_0x4a26a6(0x232)]),S[_0x4a26a6(0x1b2)]=_0x597a48[_0x4a26a6(0x151)](0x0,0x3);}function setZoom(_0x36eaa0){const _0x714c12=a0_0x3d6f;_0x36eaa0===0x0?(S[_0x714c12(0x25b)]=0x1,S['panOffset']=0x0,drawChart()):applyZoom(S['zoom']+_0x36eaa0);}const domCanvas=document[a0_0x32e50f(0x1e0)](a0_0x32e50f(0x16b)),domCtx=domCanvas?domCanvas[a0_0x32e50f(0x19d)]('2d'):null;function resizeDom(){const _0x26227d=a0_0x32e50f;if(!domCanvas||!domCtx)return;var _0x44fd54=window[_0x26227d(0x264)]||0x1,_0x4480ad=domCanvas[_0x26227d(0x139)]||domCanvas['parentElement']['offsetWidth']||0x168,_0x49752f=0x190;domCanvas[_0x26227d(0x1b7)]=Math[_0x26227d(0x167)](_0x4480ad*_0x44fd54),domCanvas[_0x26227d(0x150)]=Math['round'](_0x49752f*_0x44fd54),domCanvas['style'][_0x26227d(0x1b7)]=_0x4480ad+'px',domCanvas[_0x26227d(0x209)]['height']=_0x49752f+'px',domCtx['setTransform'](0x1,0x0,0x0,0x1,0x0,0x0),domCtx[_0x26227d(0x1c3)](_0x44fd54,_0x44fd54),domCtx[_0x26227d(0x200)]=![];}function makePat(_0x48ff5b,_0x247905,_0xd012de,_0x813d89,_0x487306,_0x2ac622){const _0x4e1c49=a0_0x32e50f;if(!_0x48ff5b)return null;return _0x4e1c49(0x1be)+_0x247905+','+_0xd012de+','+_0x813d89+','+_0x487306+')';}function a0_0x3d6f(_0xb55596,_0x3c8a2f){_0xb55596=_0xb55596-0x135;const _0x37e782=a0_0x37e7();let _0x3d6fea=_0x37e782[_0xb55596];if(a0_0x3d6f['qjEbvU']===undefined){var _0x2f2259=function(_0x3a2f7e){const _0x3da4c0='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x58b49a='',_0x327163='';for(let _0x5a540c=0x0,_0x5cf5ef,_0x3f555c,_0x2c403a=0x0;_0x3f555c=_0x3a2f7e['charAt'](_0x2c403a++);~_0x3f555c&&(_0x5cf5ef=_0x5a540c%0x4?_0x5cf5ef*0x40+_0x3f555c:_0x3f555c,_0x5a540c++%0x4)?_0x58b49a+=String['fromCharCode'](0xff&_0x5cf5ef>>(-0x2*_0x5a540c&0x6)):0x0){_0x3f555c=_0x3da4c0['indexOf'](_0x3f555c);}for(let _0x32c84a=0x0,_0x388793=_0x58b49a['length'];_0x32c84a<_0x388793;_0x32c84a++){_0x327163+='%'+('00'+_0x58b49a['charCodeAt'](_0x32c84a)['toString'](0x10))['slice'](-0x2);}return decodeURIComponent(_0x327163);};a0_0x3d6f['uCNhjS']=_0x2f2259,a0_0x3d6f['mTTXqr']={},a0_0x3d6f['qjEbvU']=!![];}const _0x36210d=_0x37e782[0x0],_0x3c3973=_0xb55596+_0x36210d,_0x49e3c9=a0_0x3d6f['mTTXqr'][_0x3c3973];return!_0x49e3c9?(_0x3d6fea=a0_0x3d6f['uCNhjS'](_0x3d6fea),a0_0x3d6f['mTTXqr'][_0x3c3973]=_0x3d6fea):_0x3d6fea=_0x49e3c9,_0x3d6fea;}function drawDom(){const _0x535ef6=a0_0x32e50f;if(!domCanvas||!domCtx)return;var _0x3a6f39=window[_0x535ef6(0x264)]||0x1,_0x549fce=domCanvas['offsetWidth']||0x168,_0x1935e6=0x190;domCtx[_0x535ef6(0x1af)](0x0,0x0,_0x549fce,_0x1935e6),domCtx[_0x535ef6(0x1e2)]=_0x535ef6(0x159),domCtx['fillRect'](0x0,0x0,_0x549fce,_0x1935e6);var _0x3e8872=0x14,_0x5d8dd5=S[_0x535ef6(0x263)]||0.05,_0x46e6ee=[];for(var _0xbaf634=_0x3e8872;_0xbaf634>=-_0x3e8872;_0xbaf634--){var _0x5f4c75=parseFloat((S[_0x535ef6(0x1e3)]+_0xbaf634*_0x5d8dd5)['toFixed'](0x2)),_0x4c8194=_0x5f4c75['toFixed'](0x2),_0xa8a2f6=_0x5f4c75>S[_0x535ef6(0x1e3)],_0x3717f0=_0x5f4c75<S['price'],_0x1bf231=0x0,_0x28d4d9=0x0,_0x3dbf2f=!![],_0x7446f3=![];if(_0xa8a2f6)_0x1bf231=S['limitSells'][_0x4c8194]?S['limitSells'][_0x4c8194]['vol']:0x0,_0x28d4d9=S['executedVol'][_0x4c8194]?S['executedVol'][_0x4c8194][_0x535ef6(0x147)]:0x0,_0x3dbf2f=!![],_0x7446f3=![];else _0x3717f0?(_0x1bf231=S[_0x535ef6(0x254)][_0x4c8194]?S[_0x535ef6(0x254)][_0x4c8194][_0x535ef6(0x238)]:0x0,_0x28d4d9=S[_0x535ef6(0x168)][_0x4c8194]?S[_0x535ef6(0x168)][_0x4c8194][_0x535ef6(0x232)]:0x0,_0x3dbf2f=![],_0x7446f3=!![]):(_0x1bf231=S[_0x535ef6(0x1d2)][_0x4c8194]?S[_0x535ef6(0x1d2)][_0x4c8194][_0x535ef6(0x232)]:0x0,_0x28d4d9=S[_0x535ef6(0x168)][_0x4c8194]?S['limitBuys'][_0x4c8194][_0x535ef6(0x232)]:0x0,_0x3dbf2f=!![],_0x7446f3=!![]);_0x46e6ee[_0x535ef6(0x196)]({'price':_0x5f4c75,'above':_0xa8a2f6,'below':_0x3717f0,'leftVol':_0x1bf231,'rightVol':_0x28d4d9,'leftIsOrange':_0x3dbf2f,'rightIsOrange':_0x7446f3});}var _0x2bfe28=makePat(domCtx,0xff,0x8c,0x1e,0.9)||_0x535ef6(0x27e),_0x1170ae=makePat(domCtx,0x0,0xbe,0xaa,0.9)||_0x535ef6(0x175),_0x15b2a4=_0x46e6ee[_0x535ef6(0x268)](function(_0x2e20a4){const _0x476737=_0x535ef6;return _0x2e20a4[_0x476737(0x20a)];}),_0x2896cb=_0x46e6ee[_0x535ef6(0x268)](function(_0x32b578){return _0x32b578['below'];}),_0x5e663f=_0x46e6ee[_0x535ef6(0x268)](function(_0x28f739){return!_0x28f739['above']&&!_0x28f739['below'];});function _0x50da87(_0xca1e56,_0x2e62ca){var _0x2e52f3=0x0;return _0xca1e56['forEach'](function(_0x51d382){_0x2e52f3+=_0x2e62ca(_0x51d382);}),_0x2e52f3;}var _0x288263=Object[_0x535ef6(0x1bd)](S[_0x535ef6(0x1d2)])[_0x535ef6(0x198)](function(_0x30fa94,_0x2723c5){const _0x2347f6=_0x535ef6;return _0x30fa94+_0x2723c5[_0x2347f6(0x232)];},0x0),_0x2fdd44=Object['values'](S[_0x535ef6(0x168)])[_0x535ef6(0x198)](function(_0x184325,_0x35df2b){const _0x56d5bf=_0x535ef6;return _0x184325+_0x35df2b[_0x56d5bf(0x232)];},0x0),_0x2360b0=Object['values'](S[_0x535ef6(0x254)])['reduce'](function(_0x1b7a5b,_0x26ef9a){const _0x30e02e=_0x535ef6;return _0x1b7a5b+_0x26ef9a[_0x30e02e(0x147)]+_0x26ef9a[_0x30e02e(0x238)];},0x0),_0x48a8dc=_0x288263+_0x2fdd44+_0x2360b0||0x1;function _0x110226(_0x55c859){const _0x2f369f=_0x535ef6;return(_0x55c859/_0x48a8dc*0x64)[_0x2f369f(0x154)](0x2);}var _0x24e3a9=_0x110226(_0x50da87(_0x15b2a4,function(_0x39c9d7){const _0x19a6e7=_0x535ef6;return _0x39c9d7[_0x19a6e7(0x22b)];})),_0x9f8346=_0x110226(_0x50da87(_0x15b2a4,function(_0x13f89b){const _0x5c21d5=_0x535ef6;return _0x13f89b[_0x5c21d5(0x181)];})),_0x2df990=_0x110226(_0x50da87(_0x2896cb,function(_0x27fc8b){const _0xd864e0=_0x535ef6;return _0x27fc8b[_0xd864e0(0x22b)];})),_0x30317c=_0x110226(_0x50da87(_0x2896cb,function(_0x35e3fe){const _0xa1afeb=_0x535ef6;return _0x35e3fe[_0xa1afeb(0x181)];})),_0x5c5ac9=_0x110226(_0x50da87(_0x5e663f,function(_0x398077){const _0x4b6c6c=_0x535ef6;return _0x398077[_0x4b6c6c(0x22b)]+_0x398077['rightVol'];})),_0x27a338=0x20,_0x519a88=0x20,_0x5be87f=_0x1935e6-_0x27a338-_0x519a88,_0x1a66f8=Math[_0x535ef6(0x183)](_0x549fce/0x2),_0x129809=0x38,_0xf8d639=_0x1a66f8-_0x129809/0x2-0x4,_0x34418e=Math['floor'](_0x5be87f/_0x46e6ee['length']);if(_0x34418e<0x6)_0x34418e=0x6;var _0xef088e=_0x46e6ee[_0x535ef6(0x277)](function(_0x44354b){const _0x5682c6=_0x535ef6;return Math[_0x5682c6(0x23a)](_0x44354b['leftVol'],_0x44354b[_0x5682c6(0x181)]);});_0xef088e['push'](0x1);var _0x4f9e26=Math[_0x535ef6(0x23a)][_0x535ef6(0x214)](null,_0xef088e);domCtx[_0x535ef6(0x1e2)]=_0x535ef6(0x1e7),domCtx[_0x535ef6(0x242)](0x0,0x0,_0x1a66f8,_0x27a338),domCtx[_0x535ef6(0x1e2)]='rgba(0,190,170,0.15)',domCtx[_0x535ef6(0x242)](_0x1a66f8,0x0,_0x549fce-_0x1a66f8,_0x27a338),domCtx[_0x535ef6(0x217)]=_0x535ef6(0x1f3),domCtx[_0x535ef6(0x1e2)]='rgba(255,160,50,0.8)',domCtx[_0x535ef6(0x1bf)]=_0x535ef6(0x260),domCtx[_0x535ef6(0x1a3)](_0x535ef6(0x26b),_0x1a66f8/0x2,0xa),domCtx['fillStyle']=_0x535ef6(0x22e),domCtx[_0x535ef6(0x1bf)]=_0x535ef6(0x260),domCtx[_0x535ef6(0x1a3)](_0x535ef6(0x24d),_0x1a66f8+(_0x549fce-_0x1a66f8)/0x2,0xa),domCtx[_0x535ef6(0x217)]='bold\x2013px\x20Share\x20Tech\x20Mono',domCtx[_0x535ef6(0x1e2)]='rgba(255,160,50,1)',domCtx['textAlign']=_0x535ef6(0x260),domCtx['fillText'](_0x24e3a9+'%',_0x1a66f8/0x2,_0x27a338-0x6),domCtx[_0x535ef6(0x1e2)]=_0x535ef6(0x208),domCtx[_0x535ef6(0x1bf)]=_0x535ef6(0x260),domCtx[_0x535ef6(0x1a3)](_0x9f8346+'%',_0x1a66f8+(_0x549fce-_0x1a66f8)/0x2,_0x27a338-0x6),domCtx[_0x535ef6(0x1e2)]='rgba(0,190,170,0.15)',domCtx[_0x535ef6(0x242)](0x0,_0x1935e6-_0x519a88,_0x1a66f8,_0x519a88),domCtx[_0x535ef6(0x1e2)]=_0x535ef6(0x1e7),domCtx[_0x535ef6(0x242)](_0x1a66f8,_0x1935e6-_0x519a88,_0x549fce-_0x1a66f8,_0x519a88),domCtx['font']='bold\x207px\x20Share\x20Tech\x20Mono',domCtx[_0x535ef6(0x1e2)]='rgba(0,210,190,0.8)',domCtx[_0x535ef6(0x1bf)]=_0x535ef6(0x260),domCtx[_0x535ef6(0x1a3)]('SELL\x20STOP',_0x1a66f8/0x2,_0x1935e6-_0x519a88+0xa),domCtx[_0x535ef6(0x1e2)]=_0x535ef6(0x1c6),domCtx[_0x535ef6(0x1bf)]=_0x535ef6(0x260),domCtx[_0x535ef6(0x1a3)](_0x535ef6(0x174),_0x1a66f8+(_0x549fce-_0x1a66f8)/0x2,_0x1935e6-_0x519a88+0xa),domCtx[_0x535ef6(0x217)]=_0x535ef6(0x17f),domCtx[_0x535ef6(0x1e2)]='rgba(0,210,190,1)',domCtx['textAlign']='center',domCtx[_0x535ef6(0x1a3)](_0x2df990+'%',_0x1a66f8/0x2,_0x1935e6-0x8),domCtx['fillStyle']=_0x535ef6(0x24f),domCtx['textAlign']='center',domCtx[_0x535ef6(0x1a3)](_0x30317c+'%',_0x1a66f8+(_0x549fce-_0x1a66f8)/0x2,_0x1935e6-0x8),domCtx[_0x535ef6(0x235)]=_0x535ef6(0x1c7),domCtx[_0x535ef6(0x18f)]=0x1,domCtx['beginPath'](),domCtx[_0x535ef6(0x1d4)](0x0,_0x27a338),domCtx[_0x535ef6(0x13a)](_0x549fce,_0x27a338),domCtx[_0x535ef6(0x24b)](),domCtx[_0x535ef6(0x252)](),domCtx['moveTo'](0x0,_0x1935e6-_0x519a88),domCtx[_0x535ef6(0x13a)](_0x549fce,_0x1935e6-_0x519a88),domCtx['stroke'](),domCtx[_0x535ef6(0x252)](),domCtx[_0x535ef6(0x1d4)](_0x1a66f8,0x0),domCtx[_0x535ef6(0x13a)](_0x1a66f8,_0x1935e6),domCtx[_0x535ef6(0x24b)]();for(var _0x1c74eb=0x0;_0x1c74eb<_0x46e6ee['length'];_0x1c74eb++){var _0x16c4f6=_0x46e6ee[_0x1c74eb],_0x14d3a7=_0x27a338+_0x1c74eb*_0x34418e;if(_0x14d3a7>_0x1935e6-_0x519a88-_0x34418e)continue;var _0x2ac8ff=!_0x16c4f6[_0x535ef6(0x20a)]&&!_0x16c4f6[_0x535ef6(0x1da)],_0x41c52a=![];for(var _0x58da6b=0x0;_0x58da6b<S['simHighVolNodes'][_0x535ef6(0x160)];_0x58da6b++){if(Math['abs'](S[_0x535ef6(0x1b2)][_0x58da6b]['price']-_0x16c4f6[_0x535ef6(0x1e3)])<0.001){_0x41c52a=!![];break;}}if(_0x2ac8ff)domCtx[_0x535ef6(0x1e2)]='rgba(255,215,0,0.06)',domCtx[_0x535ef6(0x242)](0x0,_0x14d3a7,_0x549fce,_0x34418e);else _0x41c52a&&(domCtx['fillStyle']=_0x535ef6(0x14e),domCtx[_0x535ef6(0x242)](0x0,_0x14d3a7,_0x549fce,_0x34418e));if(_0x16c4f6[_0x535ef6(0x22b)]>0x0){var _0x1dafd0=Math[_0x535ef6(0x167)](_0x16c4f6[_0x535ef6(0x22b)]/_0x4f9e26*_0xf8d639);domCtx[_0x535ef6(0x1e2)]=_0x16c4f6[_0x535ef6(0x25e)]?_0x2bfe28:_0x1170ae,domCtx['fillRect'](_0x1a66f8-_0x129809/0x2-_0x1dafd0,_0x14d3a7+0x1,_0x1dafd0,_0x34418e-0x2),_0x16c4f6['leftVol']>=0x1&&_0x34418e>=0x9&&(domCtx['fillStyle']=_0x16c4f6[_0x535ef6(0x25e)]?_0x535ef6(0x272):_0x535ef6(0x27d),domCtx[_0x535ef6(0x217)]='7px\x20Share\x20Tech\x20Mono',domCtx['textAlign']=_0x535ef6(0x1c0),domCtx[_0x535ef6(0x1a3)](_0x16c4f6[_0x535ef6(0x22b)][_0x535ef6(0x154)](0x1),_0x1a66f8-_0x129809/0x2-_0x1dafd0-0x2,_0x14d3a7+_0x34418e-0x1));}if(_0x16c4f6[_0x535ef6(0x181)]>0x0){var _0x3ed754=Math['round'](_0x16c4f6[_0x535ef6(0x181)]/_0x4f9e26*_0xf8d639);domCtx[_0x535ef6(0x1e2)]=_0x16c4f6[_0x535ef6(0x149)]?_0x2bfe28:_0x1170ae,domCtx[_0x535ef6(0x242)](_0x1a66f8+_0x129809/0x2,_0x14d3a7+0x1,_0x3ed754,_0x34418e-0x2),_0x16c4f6[_0x535ef6(0x181)]>=0x1&&_0x34418e>=0x9&&(domCtx['fillStyle']=_0x16c4f6['rightIsOrange']?_0x535ef6(0x272):'rgba(0,210,190,0.9)',domCtx['font']='7px\x20Share\x20Tech\x20Mono',domCtx[_0x535ef6(0x1bf)]=_0x535ef6(0x266),domCtx[_0x535ef6(0x1a3)](_0x16c4f6['rightVol'][_0x535ef6(0x154)](0x1),_0x1a66f8+_0x129809/0x2+_0x3ed754+0x2,_0x14d3a7+_0x34418e-0x1));}var _0xf68e13=Math['round'](_0x16c4f6[_0x535ef6(0x1e3)]%0x1*0x64),_0x3e5865=_0xf68e13===0x0||_0xf68e13===0x32;if(_0x2ac8ff)domCtx['fillStyle']=_0x535ef6(0x224),domCtx[_0x535ef6(0x217)]=_0x535ef6(0x27f),domCtx['textAlign']=_0x535ef6(0x260),domCtx['fillText'](_0x16c4f6[_0x535ef6(0x1e3)][_0x535ef6(0x154)](0x2),_0x1a66f8,_0x14d3a7+_0x34418e-0x1);else{if(_0x41c52a)domCtx[_0x535ef6(0x1e2)]=_0x535ef6(0x161),domCtx[_0x535ef6(0x217)]=_0x535ef6(0x16e),domCtx['textAlign']=_0x535ef6(0x260),domCtx[_0x535ef6(0x1a3)](_0x16c4f6[_0x535ef6(0x1e3)][_0x535ef6(0x154)](0x2),_0x1a66f8,_0x14d3a7+_0x34418e-0x1);else _0x3e5865&&(domCtx[_0x535ef6(0x1e2)]=_0x535ef6(0x267),domCtx[_0x535ef6(0x217)]='8px\x20Share\x20Tech\x20Mono',domCtx[_0x535ef6(0x1bf)]=_0x535ef6(0x260),domCtx['fillText'](_0x16c4f6['price']['toFixed'](0x2),_0x1a66f8,_0x14d3a7+_0x34418e-0x1));}}var _0x24205b=_0x27a338+_0x3e8872*_0x34418e+_0x34418e/0x2,_0x1a66f8=Math[_0x535ef6(0x183)](_0x549fce/0x2),_0x15b403=0x38;domCtx[_0x535ef6(0x235)]='rgba(255,215,0,0.85)',domCtx[_0x535ef6(0x18f)]=0x1,domCtx[_0x535ef6(0x1ef)]([0x5,0x4]),domCtx['beginPath'](),domCtx['moveTo'](0x0,_0x24205b),domCtx[_0x535ef6(0x13a)](_0x1a66f8-_0x15b403/0x2-0x2,_0x24205b),domCtx[_0x535ef6(0x24b)](),domCtx[_0x535ef6(0x252)](),domCtx[_0x535ef6(0x1d4)](_0x1a66f8+_0x15b403/0x2+0x2,_0x24205b),domCtx['lineTo'](_0x549fce,_0x24205b),domCtx[_0x535ef6(0x24b)](),domCtx[_0x535ef6(0x1ef)]([]),domCtx[_0x535ef6(0x1e2)]=_0x535ef6(0x228),domCtx[_0x535ef6(0x242)](_0x1a66f8-_0x15b403/0x2,_0x24205b-0x8,_0x15b403,0x10),domCtx[_0x535ef6(0x1e2)]=_0x535ef6(0x224),domCtx[_0x535ef6(0x217)]='bold\x209px\x20Share\x20Tech\x20Mono',domCtx[_0x535ef6(0x1bf)]='center',domCtx[_0x535ef6(0x1a3)](S['price']['toFixed'](0x2),_0x1a66f8,_0x24205b+0x4);for(var _0x1ea78c=0x0;_0x1ea78c<S[_0x535ef6(0x1b2)][_0x535ef6(0x160)];_0x1ea78c++){var _0x55f76c=S[_0x535ef6(0x1b2)][_0x1ea78c],_0x3994d2=-0x1;for(var _0x299fb1=0x0;_0x299fb1<_0x46e6ee[_0x535ef6(0x160)];_0x299fb1++){if(Math[_0x535ef6(0x282)](_0x46e6ee[_0x299fb1][_0x535ef6(0x1e3)]-_0x55f76c[_0x535ef6(0x1e3)])<0.001){_0x3994d2=_0x299fb1;break;}}if(_0x3994d2<0x0)continue;var _0x112632=_0x27a338+_0x3994d2*_0x34418e+_0x34418e/0x2;domCtx[_0x535ef6(0x1e2)]=_0x55f76c[_0x535ef6(0x192)]==='sell'?_0x535ef6(0x1ca):'rgba(0,210,190,0.9)',domCtx[_0x535ef6(0x217)]=_0x535ef6(0x1f3),domCtx[_0x535ef6(0x1bf)]=_0x535ef6(0x1c0),domCtx[_0x535ef6(0x1a3)](_0x535ef6(0x193)+(_0x1ea78c+0x1),_0x549fce-0x2,_0x112632+0x3);}}var domCrosshairY=-0x1;function drawDomCrosshair(_0x544aca){const _0x21ce3f=a0_0x32e50f;if(!domCanvas||!domCtx)return;var _0x437201=domCanvas['getBoundingClientRect'](),_0x4e5dc7=_0x544aca-_0x437201[_0x21ce3f(0x25a)],_0x183106=domCanvas[_0x21ce3f(0x139)]||0x168,_0xebf81d=0x190,_0x400c41=0x20,_0x367c2f=0x20,_0x1ee3d9=_0xebf81d-_0x400c41-_0x367c2f,_0x2221eb=0x14,_0xf6a327=S[_0x21ce3f(0x263)]||0.05,_0x490a3a=Math[_0x21ce3f(0x23a)](0x7,Math['floor'](_0x1ee3d9/(_0x2221eb*0x2+0x1))),_0x4de172=(_0x4e5dc7-_0x400c41)/_0x490a3a,_0x1f6c9b=S[_0x21ce3f(0x1e3)]+(_0x2221eb-_0x4de172)*_0xf6a327;drawDom(),domCtx['strokeStyle']=_0x21ce3f(0x23d),domCtx['lineWidth']=0x1,domCtx[_0x21ce3f(0x1ef)]([0x4,0x4]),domCtx[_0x21ce3f(0x252)](),domCtx[_0x21ce3f(0x1d4)](0x0,_0x4e5dc7),domCtx[_0x21ce3f(0x13a)](_0x183106,_0x4e5dc7),domCtx[_0x21ce3f(0x24b)](),domCtx['setLineDash']([]);var _0x35b45d=Math[_0x21ce3f(0x183)](_0x183106/0x2);domCtx[_0x21ce3f(0x1e2)]=_0x21ce3f(0x1b8),domCtx['fillRect'](_0x35b45d-0x20,_0x4e5dc7-0xb,0x40,0xf),domCtx[_0x21ce3f(0x1e2)]=_0x21ce3f(0x1ad),domCtx[_0x21ce3f(0x217)]=_0x21ce3f(0x27f),domCtx[_0x21ce3f(0x1bf)]=_0x21ce3f(0x260),domCtx[_0x21ce3f(0x1a3)](_0x1f6c9b[_0x21ce3f(0x154)](0x2),_0x35b45d,_0x4e5dc7+0x2);}domCanvas[a0_0x32e50f(0x1b4)](a0_0x32e50f(0x270),function(_0x4190ba){const _0x5c2af6=a0_0x32e50f;drawDomCrosshair(_0x4190ba[_0x5c2af6(0x136)]);}),domCanvas[a0_0x32e50f(0x1b4)](a0_0x32e50f(0x250),function(){drawDom();}),domCanvas[a0_0x32e50f(0x1b4)]('touchstart',function(_0x2cab14){const _0x20e7f0=a0_0x32e50f;_0x2cab14[_0x20e7f0(0x1ee)](),drawDomCrosshair(_0x2cab14[_0x20e7f0(0x15d)][0x0]['clientY']);},{'passive':![]}),domCanvas[a0_0x32e50f(0x1b4)](a0_0x32e50f(0x21f),function(_0x662007){const _0x4d7085=a0_0x32e50f;_0x662007[_0x4d7085(0x1ee)](),drawDomCrosshair(_0x662007[_0x4d7085(0x15d)][0x0][_0x4d7085(0x136)]);},{'passive':![]}),domCanvas[a0_0x32e50f(0x1b4)](a0_0x32e50f(0x1c9),function(){drawDom();},{'passive':!![]});const canvas=document[a0_0x32e50f(0x1e0)](a0_0x32e50f(0x219)),ctx=canvas[a0_0x32e50f(0x19d)]('2d');var chartCrosshair={'active':![],'x':-0x1,'y':-0x1,'mode':![]};function toggleCrosshair(){const _0xaaf63d=a0_0x32e50f;chartCrosshair['mode']=!chartCrosshair['mode'];var _0x44a5b3=document[_0xaaf63d(0x1e0)](_0xaaf63d(0x222));if(chartCrosshair[_0xaaf63d(0x241)]){var _0x2b253b=canvas[_0xaaf63d(0x139)],_0x467c8d=0x12c;chartCrosshair[_0xaaf63d(0x239)]=!![],chartCrosshair['x']=Math['floor'](_0x2b253b/0x2),chartCrosshair['y']=Math['floor'](_0x467c8d/0x2),_0x44a5b3&&(_0x44a5b3[_0xaaf63d(0x1fb)]=_0xaaf63d(0x14d),_0x44a5b3[_0xaaf63d(0x209)][_0xaaf63d(0x1d3)]='rgba(255,61,90,0.15)',_0x44a5b3[_0xaaf63d(0x209)][_0xaaf63d(0x22c)]=_0xaaf63d(0x1f9),_0x44a5b3[_0xaaf63d(0x209)][_0xaaf63d(0x184)]=_0xaaf63d(0x1e6)),canvas['style']['cursor']=_0xaaf63d(0x24e);}else chartCrosshair[_0xaaf63d(0x239)]=![],chartCrosshair['x']=-0x1,chartCrosshair['y']=-0x1,_0x44a5b3&&(_0x44a5b3[_0xaaf63d(0x1fb)]='✛\x20OFF',_0x44a5b3[_0xaaf63d(0x209)][_0xaaf63d(0x1d3)]=_0xaaf63d(0x16d),_0x44a5b3['style']['borderColor']='rgba(255,61,90,0.5)',_0x44a5b3['style']['color']=_0xaaf63d(0x204)),canvas[_0xaaf63d(0x209)]['cursor']='default';drawChart();}canvas[a0_0x32e50f(0x1b4)](a0_0x32e50f(0x26d),function(_0x520272){const _0x449815=a0_0x32e50f;if(chartCrosshair[_0x449815(0x241)]){var _0x241da0=canvas[_0x449815(0x194)]();chartCrosshair['x']=_0x520272[_0x449815(0x273)]-_0x241da0[_0x449815(0x266)],chartCrosshair['y']=_0x520272[_0x449815(0x136)]-_0x241da0[_0x449815(0x25a)],drawChart();return;}panDrag['active']=!![],panDrag[_0x449815(0x186)]=_0x520272[_0x449815(0x273)],panDrag[_0x449815(0x164)]=S[_0x449815(0x236)],canvas['style'][_0x449815(0x21a)]='grabbing';}),canvas['addEventListener']('mousemove',function(_0xf52d91){const _0xd5112c=a0_0x32e50f;if(chartCrosshair[_0xd5112c(0x241)]){var _0x3b9fdf=canvas[_0xd5112c(0x194)]();chartCrosshair['x']=_0xf52d91[_0xd5112c(0x273)]-_0x3b9fdf[_0xd5112c(0x266)],chartCrosshair['y']=_0xf52d91[_0xd5112c(0x136)]-_0x3b9fdf[_0xd5112c(0x25a)],drawChart();return;}if(!panDrag['active'])return;var _0x358d90=S[_0xd5112c(0x231)];if(!_0x358d90[_0xd5112c(0x160)])return;var _0x502c39=Math[_0xd5112c(0x23a)](0x5,Math[_0xd5112c(0x167)](_0x358d90[_0xd5112c(0x160)]/S[_0xd5112c(0x25b)])),_0x235661=Math[_0xd5112c(0x23a)](0x6,Math[_0xd5112c(0x211)](0x14,Math[_0xd5112c(0x183)]((canvas['offsetWidth']-0x34-0xa)/Math[_0xd5112c(0x23a)](_0x502c39,0x1))-0x3)),_0xff611a=_0x235661+0x3,_0x3188ab=_0xf52d91[_0xd5112c(0x273)]-panDrag[_0xd5112c(0x186)],_0x271ab3=Math[_0xd5112c(0x167)](_0x3188ab/_0xff611a),_0x5192bd=Math['max'](0x0,_0x358d90['length']-_0x502c39),_0x499404=-Math[_0xd5112c(0x183)](_0x502c39/0x2);S['panOffset']=Math['max'](_0x499404,Math[_0xd5112c(0x211)](panDrag[_0xd5112c(0x164)]+_0x271ab3,_0x5192bd)),drawChart();}),canvas[a0_0x32e50f(0x1b4)]('mouseup',function(){const _0x39997b=a0_0x32e50f;if(chartCrosshair[_0x39997b(0x241)])return;panDrag[_0x39997b(0x239)]=![],canvas[_0x39997b(0x209)][_0x39997b(0x21a)]='crosshair';}),canvas[a0_0x32e50f(0x1b4)](a0_0x32e50f(0x250),function(){const _0x3d8362=a0_0x32e50f;if(chartCrosshair[_0x3d8362(0x241)])return;panDrag[_0x3d8362(0x239)]=![],canvas[_0x3d8362(0x209)]['cursor']=_0x3d8362(0x1f5);});function clampPan(){const _0x1cd605=a0_0x32e50f;var _0x39407f=S['candles'];if(!_0x39407f[_0x1cd605(0x160)]){S[_0x1cd605(0x236)]=0x0;return;}var _0x5421f3=Math[_0x1cd605(0x23a)](0x5,Math[_0x1cd605(0x167)](_0x39407f['length']/S[_0x1cd605(0x25b)])),_0x36fc24=Math[_0x1cd605(0x23a)](0x0,_0x39407f[_0x1cd605(0x160)]-_0x5421f3),_0x2ef90a=-Math[_0x1cd605(0x183)](_0x5421f3/0x2);if(S[_0x1cd605(0x236)]>_0x36fc24)S['panOffset']=_0x36fc24;if(S['panOffset']<_0x2ef90a)S[_0x1cd605(0x236)]=_0x2ef90a;}function applyZoom(_0xa42f8d){const _0x3e881a=a0_0x32e50f;S['zoom']=Math[_0x3e881a(0x23a)](0.25,Math[_0x3e881a(0x211)](0x4,_0xa42f8d)),clampPan(),drawChart();}function applyPan(_0x5c2a59){const _0x2a9802=a0_0x32e50f;var _0x589a2e=S[_0x2a9802(0x231)];if(!_0x589a2e[_0x2a9802(0x160)])return;var _0x398dc8=Math[_0x2a9802(0x23a)](0x5,Math[_0x2a9802(0x167)](_0x589a2e['length']/S[_0x2a9802(0x25b)])),_0x25e0c3=Math[_0x2a9802(0x23a)](0x0,_0x589a2e['length']-_0x398dc8),_0x54b4d5=-Math[_0x2a9802(0x183)](_0x398dc8/0x2);S[_0x2a9802(0x236)]=Math[_0x2a9802(0x23a)](_0x54b4d5,Math['min'](S[_0x2a9802(0x236)]+_0x5c2a59,_0x25e0c3)),drawChart();}var panDrag={'active':![],'startX':0x0,'startPan':0x0};canvas[a0_0x32e50f(0x1b4)](a0_0x32e50f(0x26d),function(_0x302f2a){const _0x3352a3=a0_0x32e50f;panDrag[_0x3352a3(0x239)]=!![],panDrag['startX']=_0x302f2a['clientX'],panDrag[_0x3352a3(0x164)]=S[_0x3352a3(0x236)],canvas['style'][_0x3352a3(0x21a)]=_0x3352a3(0x234);}),canvas[a0_0x32e50f(0x1b4)](a0_0x32e50f(0x270),function(_0x14fcc6){const _0x3a600e=a0_0x32e50f;if(!panDrag[_0x3a600e(0x239)])return;var _0x3ada7b=S[_0x3a600e(0x231)];if(!_0x3ada7b[_0x3a600e(0x160)])return;var _0x3d0458=Math[_0x3a600e(0x23a)](0x5,Math['round'](_0x3ada7b['length']/S[_0x3a600e(0x25b)])),_0x4ba8f0=Math[_0x3a600e(0x23a)](0x6,Math[_0x3a600e(0x211)](0x14,Math[_0x3a600e(0x183)]((canvas[_0x3a600e(0x139)]-0x34-0xa)/Math[_0x3a600e(0x23a)](_0x3d0458,0x1))-0x3)),_0x284e64=_0x4ba8f0+0x3,_0x23d758=_0x14fcc6['clientX']-panDrag[_0x3a600e(0x186)],_0x1b3c61=Math['round'](_0x23d758/_0x284e64),_0x36ba50=Math['max'](0x0,_0x3ada7b[_0x3a600e(0x160)]-_0x3d0458),_0x5c01b2=-Math[_0x3a600e(0x183)](_0x3d0458/0x2);S[_0x3a600e(0x236)]=Math['max'](_0x5c01b2,Math[_0x3a600e(0x211)](panDrag[_0x3a600e(0x164)]+_0x1b3c61,_0x36ba50)),drawChart();});var touchStartX=0x0,touchStartPan=0x0,pinchStartDist=0x0,pinchStartZoom=0x1,isPinching=![];function getTouchDist(_0x25d4a1){const _0x29cf1d=a0_0x32e50f;var _0x1cbe95=_0x25d4a1[_0x29cf1d(0x15d)][0x0][_0x29cf1d(0x273)]-_0x25d4a1[_0x29cf1d(0x15d)][0x1][_0x29cf1d(0x273)],_0x5cbe32=_0x25d4a1[_0x29cf1d(0x15d)][0x0][_0x29cf1d(0x136)]-_0x25d4a1['touches'][0x1]['clientY'];return Math['sqrt'](_0x1cbe95*_0x1cbe95+_0x5cbe32*_0x5cbe32);}canvas['addEventListener'](a0_0x32e50f(0x135),function(_0x1706be){const _0x3fd5ec=a0_0x32e50f;if(_0x1706be[_0x3fd5ec(0x15d)]['length']>=0x2){isPinching=!![],pinchStartDist=getTouchDist(_0x1706be),pinchStartZoom=S['zoom'],_0x1706be[_0x3fd5ec(0x1ee)]();return;}isPinching=![];if(chartCrosshair[_0x3fd5ec(0x241)]){var _0x10fcbd=canvas['getBoundingClientRect']();chartCrosshair[_0x3fd5ec(0x239)]=!![],chartCrosshair['x']=_0x1706be[_0x3fd5ec(0x15d)][0x0][_0x3fd5ec(0x273)]-_0x10fcbd[_0x3fd5ec(0x266)],chartCrosshair['y']=_0x1706be['touches'][0x0][_0x3fd5ec(0x136)]-_0x10fcbd[_0x3fd5ec(0x25a)],drawChart(),_0x1706be['preventDefault']();return;}touchStartX=_0x1706be[_0x3fd5ec(0x15d)][0x0][_0x3fd5ec(0x273)],touchStartPan=S[_0x3fd5ec(0x236)];},{'passive':![]}),canvas[a0_0x32e50f(0x1b4)](a0_0x32e50f(0x21f),function(_0x2b5491){const _0x393000=a0_0x32e50f;if(isPinching&&_0x2b5491[_0x393000(0x15d)][_0x393000(0x160)]>=0x2){_0x2b5491[_0x393000(0x1ee)]();var _0xcc78f=getTouchDist(_0x2b5491);applyZoom(pinchStartZoom*(_0xcc78f/(pinchStartDist||0x1)));return;}if(isPinching)return;if(chartCrosshair[_0x393000(0x241)]){var _0x4be404=canvas['getBoundingClientRect']();chartCrosshair['x']=_0x2b5491[_0x393000(0x15d)][0x0][_0x393000(0x273)]-_0x4be404[_0x393000(0x266)],chartCrosshair['y']=_0x2b5491['touches'][0x0][_0x393000(0x136)]-_0x4be404[_0x393000(0x25a)],drawChart(),_0x2b5491[_0x393000(0x1ee)]();return;}var _0x6b57d1=S[_0x393000(0x231)];if(!_0x6b57d1[_0x393000(0x160)])return;var _0x51f07c=Math['max'](0x5,Math[_0x393000(0x167)](_0x6b57d1[_0x393000(0x160)]/S['zoom'])),_0xab30ee=Math[_0x393000(0x23a)](0x6,Math[_0x393000(0x211)](0x14,Math[_0x393000(0x183)]((canvas[_0x393000(0x139)]-0x34-0xa)/Math['max'](_0x51f07c,0x1))-0x3)),_0x52c82e=_0xab30ee+0x3,_0x386f2f=_0x2b5491[_0x393000(0x15d)][0x0][_0x393000(0x273)]-touchStartX,_0x807786=Math['round'](_0x386f2f/_0x52c82e),_0x55a614=Math['max'](0x0,_0x6b57d1['length']-_0x51f07c),_0x54690f=-Math[_0x393000(0x183)](_0x51f07c/0x2);S['panOffset']=Math[_0x393000(0x23a)](_0x54690f,Math[_0x393000(0x211)](touchStartPan+_0x807786,_0x55a614)),drawChart();},{'passive':![]}),canvas[a0_0x32e50f(0x1b4)](a0_0x32e50f(0x1c9),function(_0x234d94){const _0x51256c=a0_0x32e50f;if(_0x234d94[_0x51256c(0x15d)]['length']<0x2)isPinching=![];},{'passive':!![]}),canvas[a0_0x32e50f(0x1b4)](a0_0x32e50f(0x144),function(_0x221bdc){const _0x52c703=a0_0x32e50f;_0x221bdc['preventDefault'](),applyZoom(S[_0x52c703(0x25b)]+(_0x221bdc[_0x52c703(0x227)]<0x0?0.25:-0.25));},{'passive':![]});function resizeChart(){const _0x1e81f8=a0_0x32e50f,_0x4a259c=window[_0x1e81f8(0x264)]||0x1;canvas[_0x1e81f8(0x1b7)]=canvas[_0x1e81f8(0x139)]*_0x4a259c,canvas['height']=0x12c*_0x4a259c,ctx[_0x1e81f8(0x1c3)](_0x4a259c,_0x4a259c),drawChart();}function drawChart(){const _0x34c805=a0_0x32e50f,_0x284619=canvas[_0x34c805(0x139)],_0x5d1e88=0x12c;ctx[_0x34c805(0x1af)](0x0,0x0,_0x284619,_0x5d1e88),ctx[_0x34c805(0x1e2)]=_0x34c805(0x159),ctx[_0x34c805(0x242)](0x0,0x0,_0x284619,_0x5d1e88);const _0x227690=_0x5d1e88-0x30,_0x2fd2d9=0x24,_0x4ff78e=_0x227690+0x6,_0x110e4d=[...S[_0x34c805(0x231)]];if(S[_0x34c805(0x162)]&&S[_0x34c805(0x162)][_0x34c805(0x232)]>0x0)_0x110e4d[_0x34c805(0x196)]({...S[_0x34c805(0x162)],'c':S[_0x34c805(0x1e3)],'h':Math[_0x34c805(0x23a)](S['activeCandle']['h'],S[_0x34c805(0x1e3)]),'l':Math[_0x34c805(0x211)](S['activeCandle']['l'],S[_0x34c805(0x1e3)])});if(_0x110e4d[_0x34c805(0x160)]===0x0){ctx[_0x34c805(0x1e2)]='#3a6070',ctx[_0x34c805(0x217)]=_0x34c805(0x1cb),ctx[_0x34c805(0x1bf)]=_0x34c805(0x260),ctx[_0x34c805(0x1a3)](_0x34c805(0x1b5),_0x284619/0x2,_0x5d1e88/0x2);return;}const _0x3b989e=Math[_0x34c805(0x23a)](0x5,Math[_0x34c805(0x167)](_0x110e4d[_0x34c805(0x160)]/S[_0x34c805(0x25b)])),_0xdb9667=Math[_0x34c805(0x23a)](0x0,_0x110e4d[_0x34c805(0x160)]-_0x3b989e),_0x10294a=-Math[_0x34c805(0x183)](_0x3b989e/0x2);S['panOffset']=Math['max'](_0x10294a,Math[_0x34c805(0x211)](S[_0x34c805(0x236)],_0xdb9667));const _0x17961c=_0x110e4d[_0x34c805(0x160)]-_0x3b989e-S['panOffset'],_0x1631fe=[];for(let _0x254568=0x0;_0x254568<_0x3b989e;_0x254568++){const _0xecb8d3=_0x17961c+_0x254568;if(_0xecb8d3>=0x0&&_0xecb8d3<_0x110e4d[_0x34c805(0x160)])_0x1631fe['push'](_0x110e4d[_0xecb8d3]);}if(_0x1631fe[_0x34c805(0x160)]===0x0){ctx[_0x34c805(0x1e2)]=_0x34c805(0x26f),ctx[_0x34c805(0x217)]='11px\x20Share\x20Tech\x20Mono',ctx[_0x34c805(0x1bf)]=_0x34c805(0x260),ctx[_0x34c805(0x1a3)](_0x34c805(0x1b5),_0x284619/0x2,_0x5d1e88/0x2);return;}let _0x3962a1=Math['min'](..._0x1631fe['map'](_0x5f5df7=>_0x5f5df7['l']),S[_0x34c805(0x1e3)]),_0x7809a7=Math[_0x34c805(0x23a)](..._0x1631fe[_0x34c805(0x277)](_0x5f4196=>_0x5f4196['h']),S[_0x34c805(0x1e3)]);const _0x17e9fc=[...Object[_0x34c805(0x213)](S[_0x34c805(0x168)])[_0x34c805(0x277)](Number),...Object[_0x34c805(0x213)](S[_0x34c805(0x1d2)])[_0x34c805(0x277)](Number)];_0x17e9fc[_0x34c805(0x160)]&&(_0x3962a1=Math['min'](_0x3962a1,..._0x17e9fc),_0x7809a7=Math[_0x34c805(0x23a)](_0x7809a7,..._0x17e9fc));const _0x17c911=(_0x7809a7-_0x3962a1)*0.15||0.3;_0x3962a1-=_0x17c911,_0x7809a7+=_0x17c911;const _0x5cb941=_0x7809a7-_0x3962a1,_0x5b78f9=Math[_0x34c805(0x23a)](..._0x1631fe[_0x34c805(0x277)](_0x24ed19=>_0x24ed19[_0x34c805(0x232)]),0x1),_0x1646d6=0x34,_0x5779f3=Math['max'](0x6,Math[_0x34c805(0x211)](0x14,Math[_0x34c805(0x183)]((_0x284619-_0x1646d6-0xa)/Math[_0x34c805(0x23a)](_0x3b989e,0x1))-0x3)),_0x1be6a9=_0x5779f3+0x3,_0x17c7df=_0x284619-_0x1646d6-_0x3b989e*_0x1be6a9;function _0x5d674d(_0x313cb8){return _0x227690-(_0x313cb8-_0x3962a1)/_0x5cb941*_0x227690;}for(let _0x24bd1c=0x0;_0x24bd1c<=0x5;_0x24bd1c++){const _0x520eb1=_0x227690/0x5*_0x24bd1c;ctx['strokeStyle']=_0x34c805(0x218),ctx['lineWidth']=0.5,ctx[_0x34c805(0x252)](),ctx['moveTo'](0x0,_0x520eb1),ctx[_0x34c805(0x13a)](_0x284619-_0x1646d6,_0x520eb1),ctx['stroke']();const _0x22417a=_0x7809a7-_0x5cb941/0x5*_0x24bd1c;ctx[_0x34c805(0x1e2)]=_0x34c805(0x26f),ctx[_0x34c805(0x217)]='9px\x20Share\x20Tech\x20Mono',ctx[_0x34c805(0x1bf)]=_0x34c805(0x266),ctx[_0x34c805(0x1a3)](_0x22417a[_0x34c805(0x154)](0x2),_0x284619-_0x1646d6+0x3,_0x520eb1+0x4);}S['simHighVolNodes']&&S[_0x34c805(0x1b2)][_0x34c805(0x160)]>0x0&&S['simHighVolNodes'][_0x34c805(0x179)]((_0x4bd692,_0xf1b8bf)=>{const _0xe6b8d1=_0x34c805,_0x3ca341=_0x5d674d(_0x4bd692[_0xe6b8d1(0x1e3)]);if(_0x3ca341<0x0||_0x3ca341>_0x227690)return;const _0x423212=(_0x284619-_0x1646d6)*0.35,_0x5c1d7f=_0x4bd692[_0xe6b8d1(0x192)]===_0xe6b8d1(0x238)?'rgba(255,61,90,'+(0.7-_0xf1b8bf*0.1)+')':_0xe6b8d1(0x1a0)+(0.7-_0xf1b8bf*0.1)+')';ctx['setLineDash']([0x3,0x5]),ctx[_0xe6b8d1(0x235)]=_0x5c1d7f,ctx[_0xe6b8d1(0x18f)]=1.2,ctx[_0xe6b8d1(0x252)](),ctx[_0xe6b8d1(0x1d4)](_0x284619-_0x1646d6-_0x423212,_0x3ca341),ctx[_0xe6b8d1(0x13a)](_0x284619-_0x1646d6,_0x3ca341),ctx['stroke'](),ctx[_0xe6b8d1(0x1ef)]([]),ctx[_0xe6b8d1(0x1e2)]=_0x5c1d7f,ctx[_0xe6b8d1(0x217)]=_0xe6b8d1(0x1f3),ctx[_0xe6b8d1(0x1bf)]=_0xe6b8d1(0x1c0),ctx[_0xe6b8d1(0x1a3)](_0xe6b8d1(0x259)+_0x4bd692[_0xe6b8d1(0x1e3)][_0xe6b8d1(0x154)](0x2)+'\x20('+_0x4bd692[_0xe6b8d1(0x232)][_0xe6b8d1(0x154)](0x1)+')',_0x284619-_0x1646d6-_0x423212-0x2,_0x3ca341-0x2);});for(let _0x3d217e=0x0;_0x3d217e<_0x3b989e;_0x3d217e++){const _0x4f5e6d=_0x17961c+_0x3d217e;if(_0x4f5e6d<0x0||_0x4f5e6d>=_0x110e4d['length'])continue;const _0x30ac14=_0x110e4d[_0x4f5e6d],_0x3e9d94=_0x17c7df+_0x3d217e*_0x1be6a9;if(_0x3e9d94<-_0x5779f3||_0x3e9d94>_0x284619)continue;const _0xcf0bef=_0x30ac14['c']>=_0x30ac14['o'],_0x239ecd=_0xcf0bef?_0x34c805(0x199):_0x34c805(0x19f),_0x28cc22=_0x5d674d(Math[_0x34c805(0x23a)](_0x30ac14['o'],_0x30ac14['c'])),_0x244f91=_0x5d674d(Math[_0x34c805(0x211)](_0x30ac14['o'],_0x30ac14['c'])),_0x50a89b=Math[_0x34c805(0x23a)](0x2,_0x244f91-_0x28cc22),_0x385c2c=_0x4f5e6d===_0x110e4d[_0x34c805(0x160)]-0x1;ctx[_0x34c805(0x235)]=_0x239ecd,ctx[_0x34c805(0x18f)]=0x1,ctx['beginPath'](),ctx[_0x34c805(0x1d4)](_0x3e9d94+_0x5779f3/0x2,_0x5d674d(_0x30ac14['h'])),ctx[_0x34c805(0x13a)](_0x3e9d94+_0x5779f3/0x2,_0x5d674d(_0x30ac14['l'])),ctx[_0x34c805(0x24b)]();const _0x484e27=_0x385c2c?0.95:0.75;ctx[_0x34c805(0x1e2)]=_0xcf0bef?'rgba(0,230,118,'+_0x484e27+')':_0x34c805(0x1d6)+_0x484e27+')',ctx[_0x34c805(0x242)](_0x3e9d94,_0x28cc22,_0x5779f3,_0x50a89b);_0x385c2c&&(ctx['strokeStyle']=_0x239ecd,ctx[_0x34c805(0x18f)]=1.5,ctx[_0x34c805(0x1a8)](_0x3e9d94,_0x28cc22,_0x5779f3,_0x50a89b));const _0x52a059=_0x30ac14[_0x34c805(0x232)]/_0x5b78f9*_0x2fd2d9;ctx[_0x34c805(0x1e2)]=_0xcf0bef?'rgba(0,230,118,0.3)':_0x34c805(0x1d5),ctx['fillRect'](_0x3e9d94,_0x4ff78e+_0x2fd2d9-_0x52a059,_0x5779f3,_0x52a059);}S[_0x34c805(0x188)][_0x34c805(0x179)](_0x233bd0=>{const _0x54ecc8=_0x34c805,_0xe2a792=_0x233bd0[_0x54ecc8(0x192)]===_0x54ecc8(0x147),_0xaa8f57=_0x233bd0[_0x54ecc8(0x1b6)]?_0x233bd0[_0x54ecc8(0x1b6)][_0x54ecc8(0x247)]():'MARKET',_0x17f566=_0xe2a792?_0x54ecc8(0x1d1):'SELL',_0x297b8d=_0x233bd0[_0x54ecc8(0x244)]?'●\x20'+_0x17f566+'\x20'+_0xaa8f57+_0x54ecc8(0x240)+_0x233bd0[_0x54ecc8(0x21c)][_0x54ecc8(0x154)](0x2):'●\x20'+_0x17f566+'\x20'+_0xaa8f57+'\x20@\x20'+_0x233bd0[_0x54ecc8(0x21c)]['toFixed'](0x2),_0xd59e4b=_0x233bd0[_0x54ecc8(0x244)]?_0xe2a792?'rgba(0,230,118,0.9)':_0x54ecc8(0x1f9):_0x54ecc8(0x261),_0x3c1077=_0x233bd0[_0x54ecc8(0x244)]?_0xe2a792?_0x54ecc8(0x229):_0x54ecc8(0x204):_0x54ecc8(0x24a),_0xdedc18=_0x5d674d(_0x233bd0[_0x54ecc8(0x21c)]);ctx[_0x54ecc8(0x1ef)]([0x6,0x4]),ctx[_0x54ecc8(0x235)]=_0x3c1077,ctx['lineWidth']=1.5,ctx[_0x54ecc8(0x252)](),ctx[_0x54ecc8(0x1d4)](0x0,_0xdedc18),ctx[_0x54ecc8(0x13a)](_0x284619-_0x1646d6,_0xdedc18),ctx['stroke'](),ctx['setLineDash']([]),ctx[_0x54ecc8(0x1e2)]=_0xd59e4b,ctx[_0x54ecc8(0x217)]=_0x54ecc8(0x16e),ctx[_0x54ecc8(0x1bf)]=_0x54ecc8(0x266),ctx[_0x54ecc8(0x1a3)](_0x297b8d,0x4,_0xdedc18-0x3);if(_0x233bd0['tp']){const _0x268478=_0x5d674d(_0x233bd0['tp']);ctx[_0x54ecc8(0x1ef)]([0x4,0x4]),ctx['strokeStyle']=_0x54ecc8(0x229),ctx[_0x54ecc8(0x18f)]=0x1,ctx[_0x54ecc8(0x252)](),ctx[_0x54ecc8(0x1d4)](0x0,_0x268478),ctx[_0x54ecc8(0x13a)](_0x284619-_0x1646d6,_0x268478),ctx[_0x54ecc8(0x24b)](),ctx[_0x54ecc8(0x1ef)]([]),ctx[_0x54ecc8(0x1e2)]=_0x54ecc8(0x173),ctx[_0x54ecc8(0x217)]=_0x54ecc8(0x16e),ctx['textAlign']=_0x54ecc8(0x266),ctx[_0x54ecc8(0x1a3)](_0x54ecc8(0x1a6)+_0x233bd0['tp'][_0x54ecc8(0x154)](0x2),0x4,_0x268478-0x3);}if(_0x233bd0['sl']){const _0x3c9716=_0x5d674d(_0x233bd0['sl']);ctx['setLineDash']([0x4,0x4]),ctx[_0x54ecc8(0x235)]=_0x54ecc8(0x204),ctx[_0x54ecc8(0x18f)]=0x1,ctx[_0x54ecc8(0x252)](),ctx[_0x54ecc8(0x1d4)](0x0,_0x3c9716),ctx['lineTo'](_0x284619-_0x1646d6,_0x3c9716),ctx['stroke'](),ctx[_0x54ecc8(0x1ef)]([]),ctx[_0x54ecc8(0x1e2)]=_0x54ecc8(0x156),ctx[_0x54ecc8(0x217)]=_0x54ecc8(0x16e),ctx['textAlign']=_0x54ecc8(0x266),ctx[_0x54ecc8(0x1a3)](_0x54ecc8(0x170)+_0x233bd0['sl']['toFixed'](0x2),0x4,_0x3c9716+0xa);}});const _0x1ed736=_0x5d674d(S[_0x34c805(0x1e3)]);ctx[_0x34c805(0x1ef)]([0x4,0x4]),ctx[_0x34c805(0x235)]=_0x34c805(0x169),ctx[_0x34c805(0x18f)]=0x1,ctx[_0x34c805(0x252)](),ctx[_0x34c805(0x1d4)](0x0,_0x1ed736),ctx[_0x34c805(0x13a)](_0x284619-_0x1646d6,_0x1ed736),ctx['stroke'](),ctx[_0x34c805(0x1ef)]([]),ctx[_0x34c805(0x1e2)]=_0x34c805(0x169),ctx[_0x34c805(0x242)](_0x284619-_0x1646d6,_0x1ed736-0x9,_0x1646d6-0x1,0x12),ctx['fillStyle']=_0x34c805(0x1ad),ctx['font']=_0x34c805(0x27f),ctx[_0x34c805(0x1bf)]='center',ctx['fillText'](S['price'][_0x34c805(0x154)](0x2),_0x284619-_0x1646d6/0x2-0x1,_0x1ed736+0x4),ctx[_0x34c805(0x1e2)]=_0x34c805(0x26f),ctx['font']=_0x34c805(0x281),ctx[_0x34c805(0x1bf)]=_0x34c805(0x266),ctx[_0x34c805(0x1a3)](_0x34c805(0x16a),0x3,_0x4ff78e+0xa);if(chartCrosshair[_0x34c805(0x239)]&&chartCrosshair['x']>=0x0&&chartCrosshair['y']>=0x0){var _0x18819e=chartCrosshair['x'],_0x336da9=chartCrosshair['y'];ctx[_0x34c805(0x235)]='rgba(255,255,255,0.45)',ctx[_0x34c805(0x18f)]=0x1,ctx[_0x34c805(0x1ef)]([0x4,0x6]),ctx[_0x34c805(0x252)](),ctx['moveTo'](0x0,_0x336da9),ctx[_0x34c805(0x13a)](_0x284619-_0x1646d6,_0x336da9),ctx['stroke'](),ctx['beginPath'](),ctx['moveTo'](_0x18819e,0x0),ctx[_0x34c805(0x13a)](_0x18819e,_0x227690),ctx[_0x34c805(0x24b)](),ctx[_0x34c805(0x1ef)]([]);if(_0x336da9>=0x0&&_0x336da9<=_0x227690&&_0x5cb941>0x0){var _0x3ddd5c=_0x7809a7-_0x336da9/_0x227690*_0x5cb941;ctx['fillStyle']=_0x34c805(0x142),ctx['fillRect'](_0x284619-_0x1646d6,_0x336da9-0x9,_0x1646d6-0x2,0xf),ctx[_0x34c805(0x1e2)]=_0x34c805(0x1ad),ctx[_0x34c805(0x217)]=_0x34c805(0x16e),ctx[_0x34c805(0x1bf)]=_0x34c805(0x266),ctx[_0x34c805(0x1a3)](_0x3ddd5c[_0x34c805(0x154)](0x2),_0x284619-_0x1646d6+0x2,_0x336da9+0x4);}}}function buildOB(){const _0x5b4a38=a0_0x32e50f,_0x2a8f86=getSortedAsks()[_0x5b4a38(0x151)](0x0,0xa),_0x5056e3=getSortedBids()[_0x5b4a38(0x151)](0x0,0xa),_0x3f10ca=[..._0x2a8f86[_0x5b4a38(0x277)](_0xe2784e=>_0xe2784e['vol']),..._0x5056e3[_0x5b4a38(0x277)](_0x3b506f=>_0x3b506f[_0x5b4a38(0x232)])],_0x3f9690=Math[_0x5b4a38(0x23a)](..._0x3f10ca,0.1),_0x26a82d=[..._0x2a8f86]['reverse']();let _0xd1e23d=_0x2a8f86['reduce']((_0x12b564,_0x3c225d)=>_0x12b564+_0x3c225d['vol'],0x0),_0x728476='';_0x26a82d[_0x5b4a38(0x179)](_0x1b483a=>{const _0x3524c4=_0x5b4a38,_0x2f502a=Math[_0x3524c4(0x211)](0x64,_0x1b483a[_0x3524c4(0x232)]/_0x3f9690*0x64);_0x728476+=_0x3524c4(0x187)+_0x1b483a[_0x3524c4(0x1e3)][_0x3524c4(0x154)](0x2)+_0x3524c4(0x195)+_0x1b483a[_0x3524c4(0x232)][_0x3524c4(0x154)](0x1)+_0x3524c4(0x195)+_0xd1e23d[_0x3524c4(0x154)](0x1)+'</span>\x0a\x20\x20\x20\x20\x20\x20<div\x20class=\x22ob-depth\x22\x20style=\x22width:'+_0x2f502a+'%\x22></div>\x0a\x20\x20\x20\x20</div>',_0xd1e23d-=_0x1b483a['vol'];});for(let _0x4973ca=_0x26a82d[_0x5b4a38(0x160)];_0x4973ca<0xa;_0x4973ca++){_0x728476+=_0x5b4a38(0x1c5);}let _0xddc10d=0x0,_0x3bfb90='';_0x5056e3[_0x5b4a38(0x179)](_0xf6b4f8=>{const _0x24f3c4=_0x5b4a38;_0xddc10d+=_0xf6b4f8['vol'];const _0x57af4a=Math['min'](0x64,_0xf6b4f8[_0x24f3c4(0x232)]/_0x3f9690*0x64);_0x3bfb90+=_0x24f3c4(0x20e)+_0xf6b4f8['price'][_0x24f3c4(0x154)](0x2)+_0x24f3c4(0x195)+_0xf6b4f8[_0x24f3c4(0x232)][_0x24f3c4(0x154)](0x1)+_0x24f3c4(0x195)+_0xddc10d[_0x24f3c4(0x154)](0x1)+'</span>\x0a\x20\x20\x20\x20\x20\x20<div\x20class=\x22ob-depth\x22\x20style=\x22width:'+_0x57af4a+_0x24f3c4(0x276);});for(let _0x57545f=_0x5056e3[_0x5b4a38(0x160)];_0x57545f<0xa;_0x57545f++){_0x3bfb90+='<div\x20class=\x22ob-empty\x22><span>—</span><span>—</span><span>—</span><span>—</span></div>';}document[_0x5b4a38(0x1e0)]('askSection')['innerHTML']=_0x728476,document['getElementById'](_0x5b4a38(0x271))[_0x5b4a38(0x1bb)]=_0x3bfb90;const _0x2642ec=_0x5056e3[_0x5b4a38(0x160)]?_0x5056e3[0x0][_0x5b4a38(0x1e3)]:null,_0x3a332e=_0x2a8f86[_0x5b4a38(0x160)]?_0x2a8f86[0x0]['price']:null;document['getElementById'](_0x5b4a38(0x143))[_0x5b4a38(0x1fb)]=S[_0x5b4a38(0x1e3)][_0x5b4a38(0x154)](0x2),document[_0x5b4a38(0x1e0)](_0x5b4a38(0x137))['textContent']=_0x2642ec?'BID\x20'+_0x2642ec[_0x5b4a38(0x154)](0x2):'BID\x20—',document['getElementById'](_0x5b4a38(0x265))[_0x5b4a38(0x1fb)]=_0x3a332e?_0x5b4a38(0x185)+_0x3a332e[_0x5b4a38(0x154)](0x2):'ASK\x20—',document[_0x5b4a38(0x1e0)](_0x5b4a38(0x1b1))[_0x5b4a38(0x1fb)]=_0x2642ec&&_0x3a332e?_0x5b4a38(0x1ec)+(_0x3a332e-_0x2642ec)[_0x5b4a38(0x154)](0x2):'SPD\x20—';}function ui(){const _0x374ea7=a0_0x32e50f;document[_0x374ea7(0x1e0)](_0x374ea7(0x171))['textContent']=S['price'][_0x374ea7(0x154)](0x2);const _0x51de4e=getSortedBids(),_0x11fe49=getSortedAsks(),_0x315cca=_0x51de4e[_0x374ea7(0x160)]?_0x51de4e[0x0][_0x374ea7(0x1e3)]:null,_0x4f5d7a=_0x11fe49[_0x374ea7(0x160)]?_0x11fe49[0x0][_0x374ea7(0x1e3)]:null;document['getElementById'](_0x374ea7(0x22f))[_0x374ea7(0x1fb)]=_0x315cca?_0x315cca[_0x374ea7(0x154)](0x2):'—',document['getElementById'](_0x374ea7(0x177))[_0x374ea7(0x1fb)]=_0x4f5d7a?_0x4f5d7a[_0x374ea7(0x154)](0x2):'—',document['getElementById'](_0x374ea7(0x16f))[_0x374ea7(0x1fb)]=_0x315cca&&_0x4f5d7a?(_0x4f5d7a-_0x315cca)['toFixed'](0x2):'—',document[_0x374ea7(0x1e0)](_0x374ea7(0x26e))[_0x374ea7(0x1fb)]=S[_0x374ea7(0x25f)][_0x374ea7(0x154)](0x1),document[_0x374ea7(0x1e0)](_0x374ea7(0x1cc))['textContent']=S[_0x374ea7(0x207)][_0x374ea7(0x154)](0x1),document['getElementById'](_0x374ea7(0x16c))[_0x374ea7(0x1fb)]=S[_0x374ea7(0x1e1)];const _0x145169=document[_0x374ea7(0x1e0)](_0x374ea7(0x14f));if(S[_0x374ea7(0x1e3)]>S[_0x374ea7(0x223)])_0x145169[_0x374ea7(0x1fb)]=_0x374ea7(0x153),_0x145169[_0x374ea7(0x209)][_0x374ea7(0x184)]=_0x374ea7(0x13c);else S[_0x374ea7(0x1e3)]<S[_0x374ea7(0x223)]?(_0x145169[_0x374ea7(0x1fb)]='↓DOWN',_0x145169[_0x374ea7(0x209)][_0x374ea7(0x184)]='var(--sell)'):(_0x145169[_0x374ea7(0x1fb)]=_0x374ea7(0x253),_0x145169[_0x374ea7(0x209)][_0x374ea7(0x184)]=_0x374ea7(0x1df));const _0x19e1c3=Object[_0x374ea7(0x1bd)](S[_0x374ea7(0x168)])[_0x374ea7(0x198)]((_0x14ff05,_0x1bd99e)=>_0x14ff05+_0x1bd99e[_0x374ea7(0x232)],0x0)+S[_0x374ea7(0x1f8)][_0x374ea7(0x198)]((_0x256c88,_0x5ba206)=>_0x256c88+_0x5ba206[_0x374ea7(0x20d)],0x0),_0x3401f7=Object[_0x374ea7(0x1bd)](S['limitSells'])[_0x374ea7(0x198)]((_0x3e1fcf,_0x1f9be3)=>_0x3e1fcf+_0x1f9be3[_0x374ea7(0x232)],0x0)+S['sellQ'][_0x374ea7(0x198)]((_0x412911,_0x43146e)=>_0x412911+_0x43146e[_0x374ea7(0x20d)],0x0),_0x82008a=_0x19e1c3+_0x3401f7,_0x5a4889=document[_0x374ea7(0x1e0)]('ibarFill');if(_0x82008a>0x0){const _0x45a7ae=_0x19e1c3/_0x82008a*0x64;_0x5a4889[_0x374ea7(0x209)][_0x374ea7(0x1b7)]=_0x45a7ae+'%',_0x5a4889['style'][_0x374ea7(0x1d3)]=_0x45a7ae>0x3c?_0x374ea7(0x13c):_0x45a7ae<0x28?'var(--sell)':_0x374ea7(0x23e);}else _0x5a4889['style'][_0x374ea7(0x1b7)]=_0x374ea7(0x279),_0x5a4889['style'][_0x374ea7(0x1d3)]='var(--dim)';const _0x49722e=document['getElementById'](_0x374ea7(0x197));if(S[_0x374ea7(0x188)][_0x374ea7(0x160)]===0x0)_0x49722e[_0x374ea7(0x1bb)]=_0x374ea7(0x274);else{let _0x1c255a='';S[_0x374ea7(0x188)]['forEach'](_0x392a3a=>{const _0x56df07=_0x374ea7,_0x373e6a=_0x392a3a[_0x56df07(0x1b6)]?_0x392a3a[_0x56df07(0x1b6)]['toUpperCase']():'MARKET',_0x47949f=_0x392a3a[_0x56df07(0x192)]===_0x56df07(0x147)?'var(--buy)':_0x56df07(0x1c4),_0x45b4ab=_0x392a3a[_0x56df07(0x244)]?'<span\x20style=\x22background:rgba(0,230,118,0.15);color:var(--buy);padding:1px\x206px;border-radius:2px;font-size:0.6rem;\x22>TRIGGERED</span>':_0x56df07(0x13b),_0x268953=_0x392a3a['tp']?'<span\x20style=\x22color:var(--buy);font-size:0.65rem;\x22>TP:'+_0x392a3a['tp'][_0x56df07(0x154)](0x2)+_0x56df07(0x13e):'',_0x897b8c=_0x392a3a['sl']?_0x56df07(0x1ae)+_0x392a3a['sl'][_0x56df07(0x154)](0x2)+_0x56df07(0x13e):'';_0x1c255a+=_0x56df07(0x14b)+_0x392a3a[_0x56df07(0x192)]+_0x56df07(0x225)+_0x45b4ab+_0x56df07(0x1d7)+_0x47949f+'\x22>'+_0x392a3a[_0x56df07(0x192)][_0x56df07(0x247)]()+'\x20'+_0x373e6a+_0x56df07(0x191)+_0x392a3a['entry']['toFixed'](0x2)+'</span>\x0a\x20\x20\x20\x20\x20\x20\x20\x20<span\x20style=\x22display:flex;gap:6px;\x22>'+_0x268953+_0x897b8c+_0x56df07(0x1d0)+_0x392a3a['id']+_0x56df07(0x27a);}),_0x49722e[_0x374ea7(0x1bb)]=_0x1c255a;}buildOB();const _0x3d8edf=document[_0x374ea7(0x1e0)](_0x374ea7(0x262));if(S['pending'][_0x374ea7(0x160)]===0x0)_0x3d8edf[_0x374ea7(0x1bb)]=_0x374ea7(0x138);else{let _0x4dc8a4='';S[_0x374ea7(0x275)][_0x374ea7(0x179)](_0x50fd05=>{const _0x1c15dd=_0x374ea7,_0x283ef0=_0x50fd05[_0x1c15dd(0x27c)]==='TP'?_0x1c15dd(0x1b3):_0x1c15dd(0x233),_0x52f774=_0x50fd05[_0x1c15dd(0x27c)]==='TP'?_0x1c15dd(0x13c):'var(--sell)',_0x4274bf=_0x50fd05[_0x1c15dd(0x27c)]?_0x1c15dd(0x157)+_0x283ef0+_0x1c15dd(0x1e8)+_0x52f774+'\x22>'+_0x50fd05[_0x1c15dd(0x27c)]+_0x1c15dd(0x13e):'',_0x432431=_0x50fd05['side']===_0x1c15dd(0x147)?_0x1c15dd(0x13c):'var(--sell)';_0x4dc8a4+=_0x1c15dd(0x14b)+_0x50fd05[_0x1c15dd(0x192)]+'-o\x22>'+_0x4274bf+_0x1c15dd(0x1ab)+_0x432431+'\x22>'+_0x50fd05[_0x1c15dd(0x192)][_0x1c15dd(0x247)]()+'\x20'+_0x50fd05['type']['toUpperCase']()+'</span>'+_0x1c15dd(0x1c8)+_0x50fd05['price'][_0x1c15dd(0x154)](0x2)+_0x1c15dd(0x13e)+_0x1c15dd(0x19b)+_0x50fd05[_0x1c15dd(0x232)]+_0x1c15dd(0x17e)+_0x1c15dd(0x258)+_0x50fd05['id']+_0x1c15dd(0x206)+_0x1c15dd(0x189);}),_0x3d8edf['innerHTML']=_0x4dc8a4;}drawChart(),updateHVN();var _0x461bd6=document['getElementById'](_0x374ea7(0x1d8));if(_0x461bd6&&_0x461bd6[_0x374ea7(0x1ac)]!==null)drawDom();}function runSimulate(){const _0x369ec6=a0_0x32e50f,_0x79cdaa=parseFloat(document[_0x369ec6(0x1e0)](_0x369ec6(0x237))[_0x369ec6(0x215)])||0xa,_0x112448=parseInt(document['getElementById'](_0x369ec6(0x23b))['value'])||0xf;S={'price':_0x79cdaa,'prevPrice':_0x79cdaa,'buyQ':[],'sellQ':[],'pending':[],'limitBuys':{},'limitSells':{},'trades':0x0,'buyVol':0x0,'sellVol':0x0,'uid':0x1,'candles':[],'activeCandle':null,'myOrders':[],'simHighVolNodes':[],'zoom':0x1,'panOffset':0x0,'executedVol':{},'TICK':parseFloat((_0x79cdaa*0.005)['toFixed'](0x2))||0.05},seedBook(),document[_0x369ec6(0x1e0)]('tlog')[_0x369ec6(0x1bb)]=_0x369ec6(0x283)+_0x112448+'\x20candles\x20@\x20start\x20price\x20'+_0x79cdaa[_0x369ec6(0x154)](0x2)+_0x369ec6(0x1ed),document[_0x369ec6(0x1e0)](_0x369ec6(0x202))[_0x369ec6(0x209)][_0x369ec6(0x1fc)]=_0x369ec6(0x148);const _0x84ac53=['up',_0x369ec6(0x201),'sideways'],_0xb1a1b5=_0x84ac53[Math[_0x369ec6(0x183)](Math[_0x369ec6(0x1a9)]()*0x3)];log(_0x369ec6(0x245)+_0xb1a1b5['toUpperCase'](),_0x369ec6(0x221));for(let _0x50debb=0x0;_0x50debb<_0x112448;_0x50debb++){simulateOneCandle(_0x50debb,_0xb1a1b5);}document[_0x369ec6(0x1e0)](_0x369ec6(0x202))['style']['display']=_0x369ec6(0x1f0),document[_0x369ec6(0x1e0)](_0x369ec6(0x202))['textContent']='⚡\x20SIMULATE\x20'+_0x112448+_0x369ec6(0x243)+S['price'][_0x369ec6(0x154)](0x2)+'\x20—\x20PRESS\x20NEW\x20CANDLE\x20TO\x20CONTINUE\x20(Candle\x20#'+(_0x112448+0x1)+')',log(_0x369ec6(0x1d9)+_0x112448+_0x369ec6(0x25d)+S['price'][_0x369ec6(0x154)](0x2),'matched'),updateCandleStatus(),S[_0x369ec6(0x231)]['length']>0x1e?S[_0x369ec6(0x25b)]=S['candles'][_0x369ec6(0x160)]/0x1e:S[_0x369ec6(0x25b)]=0x1,S['panOffset']=0x0,clampPan(),ui();}function simulateOneCandle(_0x2d0b13,_0x3e122e){const _0x54184c=a0_0x32e50f;S[_0x54184c(0x162)]={'o':S[_0x54184c(0x1e3)],'h':S['price'],'l':S[_0x54184c(0x1e3)],'c':S['price'],'vol':0x0,'bv':0x0,'sv':0x0};let _0x3f51dc,_0x2c30ab;if(_0x3e122e==='up')_0x3f51dc=0.6+Math['random']()*0.15,_0x2c30ab=0x1-_0x3f51dc;else _0x3e122e==='down'?(_0x2c30ab=0.6+Math[_0x54184c(0x1a9)]()*0.15,_0x3f51dc=0x1-_0x2c30ab):(_0x3f51dc=0.4+Math[_0x54184c(0x1a9)]()*0.2,_0x2c30ab=0x1-_0x3f51dc);const _0x2693c6=0x2+Math['floor'](Math['random']()*0x4);for(let _0x3f9192=0x0;_0x3f9192<_0x2693c6;_0x3f9192++){const _0x1b0eb7=Math[_0x54184c(0x1a9)]()<_0x3f51dc,_0x182895=Math[_0x54184c(0x1a9)]()<0.3,_0x51455e=_0x182895?parseFloat((0x6+Math['random']()*0xe)[_0x54184c(0x154)](0x1)):parseFloat((0x1+Math['random']()*0x4)[_0x54184c(0x154)](0x1));_0x1b0eb7?(S['buyQ'][_0x54184c(0x196)]({'id':S['uid']++,'vol':_0x51455e,'rem':_0x51455e}),S[_0x54184c(0x25f)]+=_0x51455e,runMatch()):(S[_0x54184c(0x1de)][_0x54184c(0x196)]({'id':S[_0x54184c(0x1cd)]++,'vol':_0x51455e,'rem':_0x51455e}),S['sellVol']+=_0x51455e,runMatch());if(Math[_0x54184c(0x1a9)]()<0.5){const _0x5dd6e3=parseFloat((S[_0x54184c(0x263)]*(0x2+Math[_0x54184c(0x183)](Math[_0x54184c(0x1a9)]()*0x6)))[_0x54184c(0x154)](0x2)),_0x432fe0=parseFloat((S[_0x54184c(0x263)]*(0x1+Math[_0x54184c(0x183)](Math[_0x54184c(0x1a9)]()*0x4)))[_0x54184c(0x154)](0x2));if(_0x1b0eb7){const _0x4e00e5=parseFloat((S[_0x54184c(0x1e3)]+_0x5dd6e3)['toFixed'](0x2)),_0x473d79=parseFloat((S[_0x54184c(0x1e3)]-_0x432fe0)[_0x54184c(0x154)](0x2));S[_0x54184c(0x275)][_0x54184c(0x196)]({'id':S['uid']++,'side':'sell','type':_0x54184c(0x1c2),'price':_0x4e00e5,'vol':_0x51455e,'rem':_0x51455e,'tag':'TP'}),addBook(_0x54184c(0x238),_0x4e00e5,_0x51455e),S[_0x54184c(0x275)]['push']({'id':S['uid']++,'side':'sell','type':_0x54184c(0x20b),'price':_0x473d79,'vol':_0x51455e,'rem':_0x51455e,'tag':'SL'});}else{const _0x354f72=parseFloat((S[_0x54184c(0x1e3)]-_0x5dd6e3)[_0x54184c(0x154)](0x2)),_0x4aafc3=parseFloat((S[_0x54184c(0x1e3)]+_0x432fe0)[_0x54184c(0x154)](0x2));S['pending'][_0x54184c(0x196)]({'id':S[_0x54184c(0x1cd)]++,'side':_0x54184c(0x147),'type':'limit','price':_0x354f72,'vol':_0x51455e,'rem':_0x51455e,'tag':'TP'}),addBook(_0x54184c(0x147),_0x354f72,_0x51455e),S[_0x54184c(0x275)][_0x54184c(0x196)]({'id':S[_0x54184c(0x1cd)]++,'side':_0x54184c(0x147),'type':_0x54184c(0x20b),'price':_0x4aafc3,'vol':_0x51455e,'rem':_0x51455e,'tag':'SL'});}checkTrig();}}S[_0x54184c(0x162)]&&(S[_0x54184c(0x162)]['c']=S[_0x54184c(0x1e3)],S[_0x54184c(0x162)]['h']=Math[_0x54184c(0x23a)](S[_0x54184c(0x162)]['h'],S[_0x54184c(0x1e3)]),S['activeCandle']['l']=Math[_0x54184c(0x211)](S[_0x54184c(0x162)]['l'],S[_0x54184c(0x1e3)]),S['activeCandle'][_0x54184c(0x232)]>0x0&&S[_0x54184c(0x231)][_0x54184c(0x196)]({...S[_0x54184c(0x162)]}),S['activeCandle']=null),replenishBook();}function clearMyOrders(){const _0x106d0e=a0_0x32e50f;S['myOrders']=[],log('✕\x20MY\x20LINES\x20CLEARED',_0x106d0e(0x275)),ui();}function cancelMyOrder(_0x30168c){const _0x1d6029=a0_0x32e50f,_0x182995=S[_0x1d6029(0x188)][_0x1d6029(0x1e9)](_0xffe078=>_0xffe078['id']===_0x30168c);if(!_0x182995)return;if(_0x182995[_0x1d6029(0x18b)]!==null&&!_0x182995['triggered']){const _0x2929c7=S[_0x1d6029(0x275)][_0x1d6029(0x1fe)](_0x4ab222=>_0x4ab222['id']===_0x182995['pendingId']);if(_0x2929c7!==-0x1){const _0x1147f2=S['pending'][_0x2929c7];remBook(_0x1147f2[_0x1d6029(0x192)],_0x1147f2[_0x1d6029(0x1e3)],_0x1147f2['vol']),S[_0x1d6029(0x275)]['splice'](_0x2929c7,0x1),log('✕\x20MY\x20ORDER\x20ENTRY\x20CANCELLED\x20—\x20'+_0x1147f2['side'][_0x1d6029(0x247)]()+'\x20'+_0x1147f2['type'][_0x1d6029(0x247)]()+_0x1d6029(0x1cf)+_0x1147f2[_0x1d6029(0x1e3)][_0x1d6029(0x154)](0x2),'pending');}}if(_0x182995['tp']){const _0x38eca0=S[_0x1d6029(0x275)][_0x1d6029(0x1fe)](_0x486b9a=>_0x486b9a[_0x1d6029(0x27c)]==='TP'&&Math['abs'](_0x486b9a[_0x1d6029(0x1e3)]-_0x182995['tp'])<0.001);if(_0x38eca0!==-0x1){const _0x590bce=S[_0x1d6029(0x275)][_0x38eca0];remBook(_0x590bce[_0x1d6029(0x192)],_0x590bce['price'],_0x590bce[_0x1d6029(0x232)]),S[_0x1d6029(0x275)][_0x1d6029(0x163)](_0x38eca0,0x1),log(_0x1d6029(0x1f6)+_0x590bce[_0x1d6029(0x1e3)][_0x1d6029(0x154)](0x2),'pending');}}if(_0x182995['sl']){const _0x479fe8=S[_0x1d6029(0x275)][_0x1d6029(0x1fe)](_0x433914=>_0x433914[_0x1d6029(0x27c)]==='SL'&&Math[_0x1d6029(0x282)](_0x433914[_0x1d6029(0x1e3)]-_0x182995['sl'])<0.001);if(_0x479fe8!==-0x1){const _0x41de98=S['pending'][_0x479fe8];remBook(_0x41de98[_0x1d6029(0x192)],_0x41de98['price'],_0x41de98[_0x1d6029(0x232)]),S[_0x1d6029(0x275)][_0x1d6029(0x163)](_0x479fe8,0x1),log('✕\x20MY\x20ORDER\x20SL\x20CANCELLED\x20@\x20'+_0x41de98[_0x1d6029(0x1e3)][_0x1d6029(0x154)](0x2),_0x1d6029(0x275));}}S[_0x1d6029(0x188)]=S[_0x1d6029(0x188)]['filter'](_0x4802ad=>_0x4802ad['id']!==_0x30168c),ui();}function reset(){const _0x18b26e=a0_0x32e50f,_0x3e66ed=parseFloat(document[_0x18b26e(0x1e0)](_0x18b26e(0x237))['value'])||0xa;S={'price':_0x3e66ed,'prevPrice':_0x3e66ed,'buyQ':[],'sellQ':[],'pending':[],'limitBuys':{},'limitSells':{},'trades':0x0,'buyVol':0x0,'sellVol':0x0,'uid':0x1,'candles':[],'activeCandle':null,'myOrders':[],'simHighVolNodes':[],'zoom':0x1,'panOffset':0x0,'executedVol':{},'TICK':parseFloat((_0x3e66ed*0.005)[_0x18b26e(0x154)](0x2))||0.05},seedBook(),document['getElementById'](_0x18b26e(0x1b9))[_0x18b26e(0x1bb)]=_0x18b26e(0x251)+_0x3e66ed[_0x18b26e(0x154)](0x2)+_0x18b26e(0x189),document[_0x18b26e(0x1e0)](_0x18b26e(0x202))['style'][_0x18b26e(0x1fc)]=_0x18b26e(0x148),updateCandleStatus(),ui();}window[a0_0x32e50f(0x1b4)]('resize',resizeChart),resizeChart(),ui();function openRef(_0x2ab01f){const _0x24f560=a0_0x32e50f;_0x2ab01f=_0x2ab01f||'th',document['getElementById'](_0x24f560(0x15e))[_0x24f560(0x23f)][_0x24f560(0x1dd)](_0x24f560(0x141)),switchRefLang(_0x2ab01f);}function switchMobTab(_0x456e50){const _0xbb2bf1=a0_0x32e50f;[_0xbb2bf1(0x1a7),'ob',_0xbb2bf1(0x1fd)][_0xbb2bf1(0x179)](function(_0x995139){const _0x3689ad=_0xbb2bf1;var _0x824d93=document[_0x3689ad(0x1e0)](_0x3689ad(0x15c)+_0x995139),_0x1467a0=document['getElementById'](_0x3689ad(0x152)+_0x995139);if(_0x824d93)_0x824d93['classList'][_0x3689ad(0x1a5)](_0x3689ad(0x239),_0x995139===_0x456e50);if(_0x1467a0)_0x1467a0[_0x3689ad(0x23f)]['toggle'](_0x3689ad(0x239),_0x995139===_0x456e50);});_0x456e50==='chart'&&resizeChart();if(_0x456e50===_0xbb2bf1(0x1fd)){domCanvas&&(domCanvas['style'][_0xbb2bf1(0x1b7)]=_0xbb2bf1(0x1e4),domCanvas[_0xbb2bf1(0x209)][_0xbb2bf1(0x150)]=_0xbb2bf1(0x180));resizeDom(),drawDom();var _0x3a8032=document['getElementById']('forms-dom-placeholder'),_0x4325b5=document['getElementById'](_0xbb2bf1(0x190));_0x3a8032&&_0x4325b5&&window[_0xbb2bf1(0x205)]<=0x2a8&&_0x3a8032['appendChild'](_0x4325b5);}else{var _0x4325b5=document[_0xbb2bf1(0x1e0)](_0xbb2bf1(0x190)),_0x44a372=document[_0xbb2bf1(0x1e0)]('forms-original-slot');_0x4325b5&&_0x44a372&&window[_0xbb2bf1(0x205)]<=0x2a8&&_0x44a372['appendChild'](_0x4325b5);}}function toggleAcc(_0x299b8d,_0x2a4e44){const _0x9ed145=a0_0x32e50f,_0x5f0c7f=document[_0x9ed145(0x1e0)](_0x299b8d),_0x285da2=document[_0x9ed145(0x1e0)](_0x2a4e44);if(!_0x5f0c7f)return;const _0x526ff1=_0x5f0c7f[_0x9ed145(0x209)][_0x9ed145(0x1f2)]&&_0x5f0c7f[_0x9ed145(0x209)][_0x9ed145(0x1f2)]!=='0px';_0x5f0c7f[_0x9ed145(0x209)][_0x9ed145(0x1f2)]=_0x526ff1?'0px':_0x9ed145(0x180);if(_0x285da2)_0x285da2['classList']['toggle']('open',!_0x526ff1);}function closeRef(){const _0x45d87d=a0_0x32e50f;document['getElementById'](_0x45d87d(0x15e))['classList'][_0x45d87d(0x1ce)](_0x45d87d(0x141));}function switchRefLang(_0x1e2121){const _0x4de6ec=a0_0x32e50f;document[_0x4de6ec(0x1f1)](_0x4de6ec(0x165))[_0x4de6ec(0x179)](_0x4dfadf=>_0x4dfadf[_0x4de6ec(0x23f)]['remove'](_0x4de6ec(0x239))),document[_0x4de6ec(0x1f1)](_0x4de6ec(0x178))['forEach'](_0x4b9123=>_0x4b9123['classList'][_0x4de6ec(0x1ce)](_0x4de6ec(0x239))),document[_0x4de6ec(0x1e0)]('ref-'+_0x1e2121)[_0x4de6ec(0x23f)][_0x4de6ec(0x1dd)](_0x4de6ec(0x239)),document['getElementById'](_0x4de6ec(0x212)+_0x1e2121)[_0x4de6ec(0x23f)]['add'](_0x4de6ec(0x239));}window[a0_0x32e50f(0x1b4)](a0_0x32e50f(0x256),resizeChart),resizeChart(),resizeDom(),ui();</script>
+
+<!-- ===== REFERENCE MODAL ===== -->
+<div class="ref-overlay" id="refOverlay" onclick="if(event.target===this)closeRef()">
+<div class="ref-modal">
+  <div class="ref-header">
+    <span class="ref-title">📖 ORDER FLOW REFERENCE</span>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+      <div class="ref-tabs">
+        <button class="ref-tab active" id="rtab-th" onclick="switchRefLang('th')">ภาษาไทย</button>
+        <button class="ref-tab" id="rtab-en" onclick="switchRefLang('en')">ENGLISH</button>
+        <button class="ref-tab" id="rtab-terms" onclick="switchRefLang('terms')">TERMS</button>
+      </div>
+      <button onclick="closeRef()" style="background:rgba(0,184,217,0.08);border:1px solid var(--accent);border-radius:3px;color:var(--accent);font-family:'Share Tech Mono',monospace;font-size:0.75rem;letter-spacing:1px;padding:5px 12px;cursor:pointer;white-space:nowrap;">← BACK</button>
+    </div>
+  </div>
+  <div class="ref-body">
+
+  <!-- ===== THAI ===== -->
+  <div class="ref-section active" id="ref-th" style="font-family:'Sarabun',sans-serif">
+
+    <div style="background:rgba(255,152,0,0.07);border:1px solid rgba(255,152,0,0.3);border-radius:4px;padding:10px 14px;margin-bottom:16px;">
+      <span style="color:var(--match);font-weight:700;letter-spacing:1px;">⚠ Simplified Educational Model</span>
+      <p style="margin-top:6px;">tool นี้เป็น Simulation แบบ Simplified เพื่อให้เข้าใจหลักการพื้นฐานของ Order Flow — ไม่ใช่การจำลอง Exchange จริงแบบครบถ้วน ในตลาดจริงมีความซับซ้อนเพิ่มเติม เช่น Price-Time Priority, Iceberg Order, Hidden Liquidity และ Latency ซึ่งไม่ได้รวมอยู่ใน Simulation นี้ แนวคิดที่แสดงในที่นี้สะท้อนหลักการพื้นฐานที่สำคัญเพื่อการเรียนรู้ครับ</p>
+    </div>
+
+    <h1>1. Order Flow</h1>
+    <p>การเคลื่อนที่ของราคาเกิดจาก <span class="g">Market Order</span> ที่เข้ามาดูดซับ <span class="go">Limit Order</span> ใน Order Book มิใช่เกิดจากสัดส่วนเชิงปริมาณระหว่างผู้ซื้อและผู้ขาย หากแต่เป็นผลโดยตรงของ <strong>ปริมาณซื้อขาย (Volume)</strong> ที่ถูก Match กัน</p>
+    <ul>
+      <li><span class="g">Buy Market Order</span> ดูดซับ Sell Limit → ราคาปรับตัวสูงขึ้น</li>
+      <li><span class="r">Sell Market Order</span> ดูดซับ Buy Limit → ราคาปรับตัวลดลง</li>
+      <li>ฝั่งที่มี Volume มากกว่า → ราคาเคลื่อนที่ไปในทิศทางนั้น</li>
+    </ul>
+    <hr>
+
+    <h1>2. ประเภทของ Order</h1>
+    <h2>2.1 Market Order</h2>
+    <p>คำสั่งที่ถูก Execute ทันทีที่ราคาตลาด ณ ขณะนั้น ไม่มีการรอคิวใน Order Book มีผลต่อราคาในทันที และอาจก่อให้เกิด Slippage เมื่อขนาดคำสั่งมีปริมาณสูง</p>
+    <h2>2.2 Limit Order</h2>
+    <p>คำสั่งที่ถูกวางไว้ที่ราคาที่กำหนด รอคิวอยู่ใน Order Book จนกว่าราคาตลาดจะเคลื่อนมาถึงระดับดังกล่าว ไม่มีความเสี่ยง Slippage เนื่องจากระบุราคา Execute ไว้ล่วงหน้า</p>
+    <ul>
+      <li><span class="g">Buy Limit</span> — วางต่ำกว่าราคาปัจจุบัน รอ Execute ที่ระดับราคาที่ต้องการ</li>
+      <li><span class="r">Sell Limit</span> — วางสูงกว่าราคาปัจจุบัน รอ Execute ที่ระดับราคาที่ต้องการ</li>
+    </ul>
+    <h2>2.3 Stop Order</h2>
+    <p>คำสั่งที่จะถูกแปลงสภาพเป็น Market Order ทันทีเมื่อราคาตลาดเคลื่อนมาถึง Stop Price ส่งผลให้ราคาเคลื่อนที่ต่อในทิศทางเดิม</p>
+    <ul>
+      <li><span class="g">Buy Stop</span> — วางสูงกว่าราคาปัจจุบัน Trigger เมื่อราคาขึ้นถึงระดับนั้น</li>
+      <li><span class="r">Sell Stop</span> — วางต่ำกว่าราคาปัจจุบัน Trigger เมื่อราคาลงถึงระดับนั้น</li>
+    </ul>
+    <table>
+      <thead><tr><th>ประเภท Order</th><th>อยู่ใน Book?</th><th>Slippage?</th><th>เมื่อ Trigger</th></tr></thead>
+      <tbody>
+        <tr><td>Market Order</td><td>ไม่อยู่</td><td>เป็นไปได้</td><td>Execute ทันที</td></tr>
+        <tr><td>Limit Order</td><td>อยู่</td><td>ไม่มี</td><td>Execute ที่ราคาที่กำหนด</td></tr>
+        <tr><td>Stop Order</td><td>ไม่อยู่ (Broker)</td><td>เป็นไปได้</td><td>แปลงเป็น Market Order</td></tr>
+      </tbody>
+    </table>
+    <hr>
+
+    <h1>3. Order Book</h1>
+    <p>ชุดข้อมูลที่แสดง Limit Orders ทั้งหมดที่ยังคงรอ Execute อยู่ แบ่งออกเป็น <span class="cy">Bid (ฝั่งซื้อ)</span> และ <span class="cy">Ask (ฝั่งขาย)</span></p>
+    <ul>
+      <li><span class="go">Best Bid</span> — ราคาสูงสุดที่ผู้ซื้อเสนอในขณะนั้น</li>
+      <li><span class="go">Best Ask</span> — ราคาต่ำสุดที่ผู้ขายเสนอในขณะนั้น</li>
+      <li><span class="go">Spread</span> — ส่วนต่างระหว่าง Best Ask และ Best Bid</li>
+      <li><span class="go">Depth</span> — ปริมาณ Volume ที่สะสมอยู่ในแต่ละระดับราคา</li>
+    </ul>
+    <p class="note">หมายเหตุ: Stop Orders ไม่ปรากฏใน Order Book สาธารณะ โดยจะถูกเก็บรักษาไว้ที่ Broker Server เท่านั้น</p>
+    <hr>
+
+    <h1>4. Take Profit (TP) และ Stop Loss (SL)</h1>
+    <h2>4.1 Take Profit (TP) — Limit Order</h2>
+    <p>TP ทำงานในลักษณะของ Limit Order ที่วางรออยู่ในทิศทางที่ราคากำลังเคลื่อนที่ไป เมื่อราคาถึงระดับ TP จะ Execute แบบ Limit ไม่มี Slippage ราคาอาจชะลอตัวหรือพลิกกลับ</p>
+    <ul>
+      <li><strong>Buy Position TP</strong> = Sell Limit เหนือราคาปัจจุบัน → ราคาอาจชะลอตัวหรือพลิกกลับ</li>
+      <li><strong>Sell Position TP</strong> = Buy Limit ต่ำกว่าราคาปัจจุบัน → ราคาอาจชะลอตัวหรือพลิกกลับ</li>
+    </ul>
+    <h2>4.2 Stop Loss (SL) — Stop Order</h2>
+    <p>SL ทำงานในลักษณะของ Stop Order เมื่อราคาถึงระดับ SL จะถูกแปลงเป็น Market Order ทันที อาจเกิด Slippage และราคาจะเคลื่อนต่อในทิศทางเดิม</p>
+    <ul>
+      <li><strong>Buy Position SL</strong> = Sell Stop ต่ำกว่าราคา → Trigger Sell Market ราคาเคลื่อนลงต่อ</li>
+      <li><strong>Sell Position SL</strong> = Buy Stop เหนือราคา → Trigger Buy Market ราคาเคลื่อนขึ้นต่อ</li>
+    </ul>
+    <table>
+      <thead><tr><th></th><th>TP</th><th>SL</th></tr></thead>
+      <tbody>
+        <tr><td>ประเภท Order</td><td>Limit Order</td><td>Stop Order</td></tr>
+        <tr><td>Slippage</td><td>น้อยมาก หรือไม่มี</td><td>เป็นไปได้ โดยเฉพาะในตลาดผันผวนสูง</td></tr>
+        <tr><td>ผลหลัง Trigger</td><td>ราคาชะลอตัวหรือพลิกกลับ</td><td>ราคาเคลื่อนต่อในทิศทางเดิม</td></tr>
+        <tr><td>สถานะใน Book</td><td>ปรากฏใน Book</td><td>เก็บที่ Broker เท่านั้น</td></tr>
+      </tbody>
+    </table>
+    <hr>
+
+    <h1>5. Stop Loss Hunt (Liquidity Hunt)</h1>
+    <p>กลไกที่ผู้ร่วมตลาดรายใหญ่ (Smart Money) ใช้ประโยชน์จาก Stop Orders ของ Retail Trader โดย Stop ที่ถูก Trigger จะแปลงสภาพเป็น Market Order ซึ่งสามารถนำมาใช้เป็น Counterparty ในการสร้างสถานะการลงทุนได้</p>
+    <ul>
+      <li>Smart Money วิเคราะห์ระดับราคาที่ Retail มักสะสม SL ไว้ (Swing High/Low, Round Number)</li>
+      <li>ดันราคาไปแตะระดับนั้น → SL ถูก Trigger → แปลงสภาพเป็น Market Order</li>
+      <li>Smart Money ใช้ Volume ดังกล่าวเป็น Counterparty จากนั้นพลิกทิศทางราคา</li>
+    </ul>
+    <p class="note">Smart Money ไม่สามารถมองเห็น Stop Orders โดยตรง แต่สามารถคาดการณ์ตำแหน่งได้จากพฤติกรรมที่เป็นรูปแบบซ้ำของ Retail Trader</p>
+    <hr>
+
+    <h1>6. สถานการณ์การเคลื่อนที่ของราคา</h1>
+    <table>
+      <thead><tr><th>สถานการณ์</th><th>ผลที่เกิดขึ้น</th><th>กลไกอธิบาย</th></tr></thead>
+      <tbody>
+        <tr><td>Limit Order สะสมหนาแน่น</td><td>ราคาชะลอตัวหรือ Bounce</td><td>Market Order ต้องบริโภค Limit ออกก่อน</td></tr>
+        <tr><td>Stop Orders ถูก Trigger</td><td>ราคาเคลื่อนต่อในทิศทางเดิม</td><td>Stop แปลงสภาพเป็น Market Order</td></tr>
+        <tr><td>Order Book เบาบาง (FVG)</td><td>ราคาเคลื่อนที่อย่างรวดเร็ว</td><td>ไม่มี Limit Order ต้านทาน</td></tr>
+        <tr><td>Market Order ขนาดใหญ่</td><td>เกิด Slippage</td><td>บริโภค Limit ข้ามหลายระดับราคาพร้อมกัน</td></tr>
+        <tr><td>ราคาถึงระดับ TP</td><td>ราคาชะลอตัวหรือพลิกกลับ</td><td>Limit Order ดูดซับ Market Order</td></tr>
+      </tbody>
+    </table>
+    <hr>
+
+    <h1>7. การบูรณาการ SMC กับ Order Flow</h1>
+    <p><span class="cy">SMC</span> ระบุ <em>ตำแหน่ง</em> ที่คาดว่าจะเกิด Reaction — <span class="cy">Order Flow</span> ยืนยันว่า <em>Reaction นั้นเกิดขึ้นจริงหรือไม่</em></p>
+    <table>
+      <thead><tr><th>แนวคิด SMC</th><th>คำอธิบายเชิง Order Flow</th></tr></thead>
+      <tbody>
+        <tr><td>Order Block</td><td>โซนที่มี Limit Orders สะสมหนาแน่น ราคาต้องบริโภคออกก่อนจึงจะผ่านได้</td></tr>
+        <tr><td>FVG</td><td>Order Book เบาบางมาก ราคาเคลื่อนผ่านอย่างรวดเร็วโดยไม่มีแรงต้าน</td></tr>
+        <tr><td>SSL / BSL</td><td>บริเวณที่ Stop Orders กองสะสมอยู่ — เป้าหมายหลักของ Smart Money</td></tr>
+        <tr><td>Inducement</td><td>กลไกล่อให้ Retail วาง SL แล้วกวาด Liquidity ออกจากตลาด</td></tr>
+        <tr><td>Displacement</td><td>Market Order ขนาดใหญ่บริโภค Limit Order ข้ามหลายระดับราคาพร้อมกัน</td></tr>
+        <tr><td>FRVP + OB</td><td>การใช้ FRVP คลุม OB เพื่อระบุ POC ซึ่งเป็นจุด Entry ที่แม่นยำที่สุดใน OB</td></tr>
+      </tbody>
+    </table>
+    <div class="doc-footer">ORDER FLOW REFERENCE · SMC × MATCHING ENGINE · มีนาคม 2569</div>
+  </div>
+
+  <!-- ===== ENGLISH ===== -->
+  <div class="ref-section" id="ref-en" style="font-family:'Rajdhani',sans-serif">
+
+    <div style="background:rgba(255,152,0,0.07);border:1px solid rgba(255,152,0,0.3);border-radius:4px;padding:10px 14px;margin-bottom:16px;">
+      <span style="color:var(--match);font-weight:700;letter-spacing:1px;">⚠ SIMPLIFIED EDUCATIONAL MODEL</span>
+      <p style="margin-top:6px;">This tool is a simplified simulation designed to illustrate the core mechanics of Order Flow. Real exchanges implement additional complexity including Price-Time Priority queuing, Iceberg Orders, Hidden Liquidity, and co-location latency. The concepts demonstrated here reflect the fundamental principles — not the full technical specification of any live exchange.</p>
+    </div>
+
+    <h1>1. Order Flow</h1>
+    <p>Price movement is the direct result of <span class="g">Market Orders</span> consuming <span class="go">Limit Orders</span> within the Order Book. This process is governed by <strong>matched volume</strong>, not by the relative count of buyers and sellers.</p>
+    <ul>
+      <li>A <span class="g">Buy Market Order</span> consumes Sell Limit Orders → price advances upward</li>
+      <li>A <span class="r">Sell Market Order</span> consumes Buy Limit Orders → price declines downward</li>
+      <li>The side with greater volume determines the direction of price movement</li>
+    </ul>
+    <hr>
+
+    <h1>2. Order Classification</h1>
+    <h2>2.1 Market Order</h2>
+    <p>Executed immediately at the prevailing market price. Does not rest in the Order Book. Exerts an instantaneous impact on price. Large-sized Market Orders may cause <strong>Slippage</strong>.</p>
+    <h2>2.2 Limit Order</h2>
+    <p>Placed at a specified price and queued within the Order Book, awaiting execution when the market price reaches that level. Carries <strong>no Slippage risk</strong> due to the predetermined execution price.</p>
+    <ul>
+      <li><span class="g">Buy Limit</span> — placed below current price; awaits execution at a lower level</li>
+      <li><span class="r">Sell Limit</span> — placed above current price; awaits execution at a higher level</li>
+    </ul>
+    <h2>2.3 Stop Order</h2>
+    <p>Remains dormant until the market price reaches the designated Stop Price, at which point it is immediately converted into a Market Order, propagating price in the prevailing direction.</p>
+    <ul>
+      <li><span class="g">Buy Stop</span> — placed above current price; triggers a Buy Market Order on breach</li>
+      <li><span class="r">Sell Stop</span> — placed below current price; triggers a Sell Market Order on breach</li>
+    </ul>
+    <table>
+      <thead><tr><th>Order Type</th><th>In Order Book?</th><th>Slippage Risk?</th><th>Upon Execution</th></tr></thead>
+      <tbody>
+        <tr><td>Market Order</td><td>No</td><td>Present</td><td>Executes at market price immediately</td></tr>
+        <tr><td>Limit Order</td><td>Yes</td><td>None</td><td>Executes at specified price</td></tr>
+        <tr><td>Stop Order</td><td>No (Broker-side)</td><td>Present</td><td>Converted to Market Order</td></tr>
+      </tbody>
+    </table>
+    <hr>
+
+    <h1>3. Order Book</h1>
+    <p>A real-time record of all active Limit Orders awaiting execution, organized into two opposing sides: <span class="cy">Bid (buy-side)</span> and <span class="cy">Ask (sell-side)</span>.</p>
+    <ul>
+      <li><span class="go">Best Bid</span> — highest price at which a buyer is currently willing to transact</li>
+      <li><span class="go">Best Ask</span> — lowest price at which a seller is currently willing to transact</li>
+      <li><span class="go">Spread</span> — differential between the Best Ask and Best Bid</li>
+      <li><span class="go">Depth</span> — cumulative volume available at each price level</li>
+    </ul>
+    <p class="note">Note: Stop Orders are not visible in the public Order Book. They are maintained server-side at the broker only.</p>
+    <hr>
+
+    <h1>4. Take Profit (TP) and Stop Loss (SL)</h1>
+    <h2>4.1 Take Profit (TP) — Limit Order</h2>
+    <p>Functions as a Limit Order in the anticipated direction of price movement. Executes as a Limit Order with <strong>no Slippage</strong>. Price may decelerate or reverse at this level.</p>
+    <ul>
+      <li><strong>Buy Position TP</strong> = Sell Limit above current price → price may decelerate or reverse</li>
+      <li><strong>Sell Position TP</strong> = Buy Limit below current price → price may decelerate or reverse</li>
+    </ul>
+    <h2>4.2 Stop Loss (SL) — Stop Order</h2>
+    <p>Functions as a Stop Order. Immediately converted into a Market Order upon the market reaching the SL level. Slippage may occur. Price continues in the prevailing direction.</p>
+    <ul>
+      <li><strong>Buy Position SL</strong> = Sell Stop below current price → triggers Sell Market; price continues lower</li>
+      <li><strong>Sell Position SL</strong> = Buy Stop above current price → triggers Buy Market; price continues higher</li>
+    </ul>
+    <table>
+      <thead><tr><th></th><th>Take Profit (TP)</th><th>Stop Loss (SL)</th></tr></thead>
+      <tbody>
+        <tr><td>Order Classification</td><td>Limit Order</td><td>Stop Order</td></tr>
+        <tr><td>Slippage Risk</td><td>Minimal to none</td><td>Present; amplified in fast markets</td></tr>
+        <tr><td>Post-Trigger Price Behavior</td><td>Decelerates or reverses</td><td>Continues in prevailing direction</td></tr>
+        <tr><td>Order Book Visibility</td><td>Visible in Book</td><td>Broker-side only</td></tr>
+      </tbody>
+    </table>
+    <hr>
+
+    <h1>5. Stop Loss Hunt (Liquidity Hunt)</h1>
+    <p>A mechanism by which institutional participants (Smart Money) exploit the predictable Stop Order placement of retail traders. Triggered Stops become Market Orders used as counterparty volume.</p>
+    <ul>
+      <li>Institutional participants identify Stop Order clusters (Swing Highs/Lows, Round Numbers, S/R)</li>
+      <li>Price is engineered to reach that level → Stops trigger → converted to Market Orders</li>
+      <li>Institutional participants absorb the flow as counterparty, then reverse price direction</li>
+    </ul>
+    <p class="note">Institutional participants do not have direct visibility into Stop Orders. Positions are inferred from repetitive retail behavioral patterns.</p>
+    <hr>
+
+    <h1>6. Price Movement Mechanics</h1>
+    <table>
+      <thead><tr><th>Scenario</th><th>Market Response</th><th>Underlying Mechanism</th></tr></thead>
+      <tbody>
+        <tr><td>Dense Limit Order concentration</td><td>Price decelerates or reverses</td><td>Market Orders must consume Limits before advancing</td></tr>
+        <tr><td>Stop Orders triggered</td><td>Price continues in prevailing direction</td><td>Stops converted to Market Orders</td></tr>
+        <tr><td>Thin Order Book (FVG)</td><td>Rapid, unimpeded price movement</td><td>Absence of Limit Order resistance</td></tr>
+        <tr><td>Large Market Order submitted</td><td>Slippage occurs</td><td>Consumes Limits across multiple price levels</td></tr>
+        <tr><td>Price reaches TP level</td><td>Price decelerates or reverses</td><td>Limit Orders absorb incoming Market Order flow</td></tr>
+      </tbody>
+    </table>
+    <hr>
+
+    <h1>7. Integration of SMC and Order Flow</h1>
+    <p><span class="cy">SMC</span> identifies <em>where</em> a reaction is anticipated. <span class="cy">Order Flow</span> confirms <em>whether that reaction is actually occurring</em> at the identified level.</p>
+    <table>
+      <thead><tr><th>SMC Concept</th><th>Order Flow Interpretation</th></tr></thead>
+      <tbody>
+        <tr><td>Order Block</td><td>Zone of concentrated Limit Order activity; price must consume before advancing</td></tr>
+        <tr><td>FVG</td><td>Sparse Order Book depth; price traverses rapidly due to absence of resistance</td></tr>
+        <tr><td>SSL / BSL</td><td>Levels where Stop Orders cluster; primary targets for institutional liquidity collection</td></tr>
+        <tr><td>Inducement</td><td>Deliberate move to prompt retail SL placement, which is subsequently hunted</td></tr>
+        <tr><td>Displacement</td><td>High-volume Market Order consuming Limits across multiple levels in rapid succession</td></tr>
+        <tr><td>FRVP + OB</td><td>Applying FRVP to an OB reveals the POC — most precise entry level within the zone</td></tr>
+      </tbody>
+    </table>
+    <div class="doc-footer">ORDER FLOW REFERENCE · SMC × MATCHING ENGINE · 2026</div>
+  </div>
+
+  <!-- ===== TERMS OF USE ===== -->
+  <div class="ref-section" id="ref-terms" style="font-family:'Rajdhani',sans-serif">
+    <h1>TERMS OF USE</h1>
+    <h2>1. LICENSE</h2>
+    <p>This software is licensed, not sold. One license key permits use by one individual across personal devices only. Sharing, reselling, or redistributing this license is strictly prohibited.</p>
+    <hr>
+    <h2>2. EDUCATIONAL PURPOSE</h2>
+    <p>OrderFlow X is designed solely for educational purposes to simulate order book mechanics. It does not connect to live markets and does not constitute financial advice, investment recommendation, or trading signal of any kind.</p>
+    <hr>
+    <h2>3. NO GUARANTEE</h2>
+    <p>Simulation results do not reflect actual market conditions. The developer makes no guarantee of profitability or accuracy of any trading strategy derived from use of this tool. Past simulation results do not guarantee future performance.</p>
+    <hr>
+    <h2>4. INTELLECTUAL PROPERTY</h2>
+    <p>All code, design, and content within this application is the intellectual property of the developer. Reverse engineering, modification, or redistribution is prohibited without written permission.</p>
+    <hr>
+    <h2>5. LIMITATION OF LIABILITY</h2>
+    <p>The developer is not liable for any financial losses resulting from use or misuse of this tool. By using this software, you agree to take full responsibility for your own trading decisions.</p>
+    <hr>
+    <h2>6. DISCLAIMER</h2>
+    <p>Trading in financial markets involves substantial risk of loss and is not suitable for every investor. The high degree of leverage can work against you as well as for you. You should carefully consider your investment objectives, level of experience, and risk appetite before using any trading tool or strategy.</p>
+    <div class="doc-footer">© 2026 OrderFlow X — All Rights Reserved · v1.01.2</div>
+  </div>
+
+  </div><!-- end ref-body -->
+</div><!-- end ref-modal -->
+</div><!-- end ref-overlay -->
+</body>
+</html>
